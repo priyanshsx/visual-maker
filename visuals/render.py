@@ -45,11 +45,11 @@ class TextOverflowError(Exception):
 #--------------------------------------------------------------#
 
 # Fill a template with the words and the brand; returns the full HTML page
-def build_html(spec, brand: Brand, size: str) -> str:
+def build_html(spec, brand: Brand, size: str, for_video: bool = False) -> str:
     width, height = SIZES[size]
     scale = round(min(width, height) / 1080, 4)  # 1 for square/portrait, smaller for landscape
     return _env.get_template(f"{spec.template}.html").render(
-        spec=spec, brand=brand, w=width, h=height, s=scale, size=size,
+        spec=spec, brand=brand, w=width, h=height, s=scale, size=size, for_video=for_video,
         css=(TEMPLATES_DIR / "base.css").read_text(encoding="utf-8"),
         font_url=font_css_url(brand),
         font_css=font_face_css(brand),
@@ -69,9 +69,10 @@ class Renderer:
         self._pw.stop()
 
     def render(self, spec, brand: Brand, size: str, out_dir: Path, base_name: str,
-               keep_html: bool = False) -> list[Path]:
+               keep_html: bool = False, for_video: bool = False) -> list[Path]:
+        """for_video: slides for a video (no "Swipe" hint, no PDF)."""
         width, height = SIZES[size]
-        html = build_html(spec, brand, size)
+        html = build_html(spec, brand, size, for_video)
         out_dir.mkdir(parents=True, exist_ok=True)
         if keep_html:
             (out_dir / f"{base_name}_{size}.html").write_text(html, encoding="utf-8")
@@ -96,10 +97,11 @@ class Renderer:
                     path = out_dir / f"{base_name}_{size}_{i:02d}.png"
                     slide.screenshot(path=str(path))
                     paths.append(path)
-                pdf = out_dir / f"{base_name}_{size}.pdf"
-                page.pdf(path=str(pdf), width=f"{width}px", height=f"{height}px",
-                         print_background=True, prefer_css_page_size=True)
-                paths.append(pdf)
+                if not for_video:
+                    pdf = out_dir / f"{base_name}_{size}.pdf"
+                    page.pdf(path=str(pdf), width=f"{width}px", height=f"{height}px",
+                             print_background=True, prefer_css_page_size=True)
+                    paths.append(pdf)
             return paths
         finally:
             page.close()

@@ -14,7 +14,7 @@
   </main>
   <footer class="bottom">
     <span class="handle">{{ brand.handle or brand.website or "" }}</span>
-    <span class="swipe">Swipe &rarr;</span>
+    {% if not for_video %}<span class="swipe">Swipe &rarr;</span>{% endif %}
   </footer>
 </section>
 {% else %}

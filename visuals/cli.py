@@ -11,13 +11,15 @@
 #     python -m visuals --client vizcorn --template quote --quote "Clean data first." --author "VizCorn"
 #     python -m visuals --client vizcorn --template stat --stat "3 in 4" --headline "..." --source "..."
 #     python -m visuals --client vizcorn --template carousel --slide "Title" --slide "Point | detail"
-#   Options: --size portrait|square|landscape (repeat for several), --out <folder>, --html
+#   Options: --size portrait|square|landscape|story (repeat for several), --out <folder>, --html
+#            --video (also make slideshow MP4s), --seconds 3.5 (time per slide)
 #   Output: outputs/<client>/<today>/
 #--------------------------------------------------------------#
 
 # Imports Libraries
 import argparse
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -48,6 +50,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="output size (default: portrait); repeat for several")
     p.add_argument("--out", help="output folder (default: outputs/<client>/<today>)")
     p.add_argument("--html", action="store_true", help="also save the HTML (for checking designs)")
+    p.add_argument("--video", action="store_true", help="also make a slideshow MP4 for every entry")
+    p.add_argument("--seconds", type=float, help="seconds per slide in videos (default 3.5)")
+    p.add_argument("--music", help="background music file for videos (looked up in inputs/<client>/)")
     return p.parse_args(argv)
 #--------------------------------------------------------------#
 
@@ -92,6 +97,16 @@ def resolve_file(client: str, file: str) -> Path:
     raise FileNotFoundError(f"Batch file not found: {file} (also looked in {INPUTS_DIR / client})")
 #--------------------------------------------------------------#
 
+# Find the music file: as typed, or inside inputs/<client>/ (None if no music)
+def resolve_music(client: str, music: str | None) -> Path | None:
+    if not music:
+        return None
+    for candidate in (Path(music), INPUTS_DIR / client / music):
+        if candidate.exists():
+            return candidate
+    return INPUTS_DIR / client / music          # missing: make_slideshow gives a clear error
+#--------------------------------------------------------------#
+
 # Turn the single-image arguments into one spec
 def spec_from_args(args: argparse.Namespace):
     data = {"template": args.template}
@@ -99,6 +114,12 @@ def spec_from_args(args: argparse.Namespace):
         data["name"] = args.name
     if args.size:
         data["sizes"] = args.size
+    if args.video:
+        data["video"] = True
+    if args.seconds:
+        data["seconds_per_slide"] = args.seconds
+    if args.music:
+        data["music"] = args.music
     if args.template == "carousel":
         slides = []
         for raw in args.slide or []:
@@ -120,8 +141,17 @@ def main(argv: list[str] | None = None) -> int:
         brand = load_brand(args.client)
         if args.file:
             specs = load_batch(resolve_file(args.client, args.file))
-            if args.size:                                   # --size overrides the file
-                specs = [s.model_copy(update={"sizes": args.size}) for s in specs]
+            overrides = {}                                  # command-line options win over the file
+            if args.size:
+                overrides["sizes"] = args.size
+            if args.video:
+                overrides["video"] = True
+            if args.seconds:
+                overrides["seconds_per_slide"] = args.seconds
+            if args.music:
+                overrides["music"] = args.music
+            specs = [s.model_copy(update=overrides) for s in specs]
+            specs = [type(s).model_validate(s.model_dump()) for s in specs]   # re-check limits
         else:
             specs = [spec_from_args(args)]
     except ValidationError as e:
@@ -132,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from visuals.render import Renderer, TextOverflowError   # imported late: starts a browser
+    from visuals.video import VideoError, make_slideshow
     out_dir = Path(args.out) if args.out else OUTPUTS_DIR / args.client / date.today().isoformat()
     made, failed = [], []
     with Renderer() as renderer:
@@ -139,8 +170,17 @@ def main(argv: list[str] | None = None) -> int:
             base = spec.name or f"{i:02d}-{spec.template}"
             for size in spec.sizes:
                 try:
-                    made += renderer.render(spec, brand, size, out_dir, base, keep_html=args.html)
-                except TextOverflowError as e:
+                    files = renderer.render(spec, brand, size, out_dir, base, keep_html=args.html)
+                    made += files
+                    if spec.video:                          # video frames: separate, temporary
+                        width, height = SIZES[size]
+                        with tempfile.TemporaryDirectory() as tmp:
+                            frames = renderer.render(spec, brand, size, Path(tmp), base,
+                                                     for_video=True)
+                            made.append(make_slideshow(
+                                frames, out_dir / f"{base}_{size}.mp4", width, height,
+                                spec.seconds_per_slide, resolve_music(args.client, spec.music)))
+                except (TextOverflowError, VideoError) as e:
                     failed.append(str(e))
 
     for path in made:

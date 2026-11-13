@@ -6,6 +6,7 @@ colours, font and logo and renders sharp PNGs (and a PDF for carousels).
 ## Setup (once)
 
 ```bash
+brew install ffmpeg            # for videos
 source .venv/bin/activate
 pip install -e .
 playwright install chromium
@@ -32,9 +33,22 @@ Images land in `outputs/<client>/<today>/`.
 
 | Option | What it does |
 |---|---|
-| `--size portrait` / `square` / `landscape` | 1080×1350 (default), 1080×1080, 1200×675. Repeat for several. |
+| `--size portrait` / `square` / `landscape` / `story` | Output size (see below). Repeat for several. |
 | `--out <folder>` | Save somewhere else |
 | `--html` | Also save the HTML, to check a design in a browser |
+| `--video` | Also make a slideshow MP4 of every entry |
+| `--seconds 4` | Seconds per slide in videos (default 3.5) |
+| `--music track.mp3` | Background music for videos (file in `inputs/<client>/`) |
+
+Sizes: `portrait` 1080×1350 (default), `square` 1080×1080, `landscape` 1200×675, `story` 1080×1920.
+
+## Videos
+
+Add `video: true` to any entry (or use `--video`). Each slide zooms in slowly and the next
+slide swipes in, like a carousel; a quote or stat card becomes a single zooming shot.
+Optional `seconds_per_slide` and `music`. The video slides leave out the "Swipe" hint.
+
+Needs FFmpeg once: `brew install ffmpeg`. A 5-slide video takes about 15 seconds to make.
 
 ## Templates
 
@@ -60,7 +74,7 @@ next to it. No code changes.
 brands/      one folder per client: brand.yaml + logo
 fonts/       bundled font files (Inter, SIL Open Font License)
 templates/   HTML/CSS designs shared by all clients
-visuals/     the code (cli, brand, specs, render)
+visuals/     the code (cli, brand, specs, render, video)
 inputs/      your words, one YAML file per batch
 outputs/     finished images (not in git)
 tests/       automatic checks

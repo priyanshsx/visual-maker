@@ -8,7 +8,13 @@
 #   carousel: slides (2 to 12), each with title (90) and body (320, optional)
 # Every entry may also set:
 #   name:  file name (letters, numbers, - and _)
-#   sizes: [portrait] (default), square, landscape. Several at once: [portrait, landscape]
+#   sizes: [portrait] (default), square, landscape, story. Several at once: [portrait, story]
+#
+# Video (slideshow MP4, needs FFmpeg: brew install ffmpeg):
+#   video: true             also make an MP4 (each slide zooms slowly, slides swipe in)
+#   seconds_per_slide: 3.5  time on each slide (1.5 to 10)
+#   music: track.mp3        optional background music, file in inputs/<client>/
+#                           (only use music you have the rights to)
 #
 # Rule: only use numbers you can back up, and put the source in "source".
 
@@ -28,6 +34,7 @@
 
 - template: carousel
   name: why-s4-projects-slip
+  video: true                  # also makes why-s4-projects-slip_portrait.mp4
   slides:
     - title: Why S/4HANA projects slip
       body: It's rarely the software. It's the data you bring with you.

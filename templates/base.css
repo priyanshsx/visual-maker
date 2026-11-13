@@ -15,6 +15,8 @@ body {
 .body, .slide-body, .cover-body { text-wrap: pretty; }
 
 /* ---- slide frame ---- */
+/* Story (1080x1920): extra top/bottom space so app buttons don't cover the text */
+.size-story .slide { padding-top: calc(var(--s) * 220px); padding-bottom: calc(var(--s) * 260px); }
 .slide {
   position: relative;
   display: flex;

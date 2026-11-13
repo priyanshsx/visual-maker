@@ -9,7 +9,8 @@
 #   - template: stat           -> stat, headline, body (optional), source (optional)
 #   - template: carousel       -> slides: list of {title, body (optional)}
 #
-#   Every entry may also set: name (file name) and sizes (portrait / square / landscape).
+#   Every entry may also set: name (file name), sizes (portrait / square / landscape / story),
+#   and video: true to also get a slideshow MP4 (seconds_per_slide, music optional).
 #--------------------------------------------------------------#
 
 # Imports Libraries
@@ -25,8 +26,9 @@ SIZES = {
     "portrait": (1080, 1350),    # LinkedIn / Instagram feed, LinkedIn carousels
     "square": (1080, 1080),
     "landscape": (1200, 675),    # X / Twitter
+    "story": (1080, 1920),       # Reels, Shorts, LinkedIn vertical video
 }
-SizeName = Literal["portrait", "square", "landscape"]
+SizeName = Literal["portrait", "square", "landscape", "story"]
 #--------------------------------------------------------------#
 
 # Shared fields for every template
@@ -37,6 +39,9 @@ class Strict(BaseModel):
 class BaseSpec(Strict):
     name: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]+$")
     sizes: list[SizeName] = Field(default_factory=lambda: ["portrait"], min_length=1)
+    video: bool = False                                   # also make a slideshow MP4
+    seconds_per_slide: float = Field(default=3.5, ge=1.5, le=10)
+    music: str | None = None                              # audio file in inputs/<client>/
 #--------------------------------------------------------------#
 
 # One class per template
