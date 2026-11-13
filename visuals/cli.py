@@ -13,6 +13,10 @@
 #     python -m visuals --client vizcorn --template carousel --slide "Title" --slide "Point | detail"
 #   Options: --size portrait|square|landscape|story (repeat for several), --out <folder>, --html
 #            --video (also make slideshow MP4s), --seconds 3.5 (time per slide)
+#            --duration 8 (length of stat_motion / quote_motion videos), --music track.mp3
+#   Motion:
+#     python -m visuals --client vizcorn --template stat_motion --stat "75%" --headline "..."
+#     python -m visuals --client vizcorn --template quote_motion --quote "Fix the *data* first."
 #   Output: outputs/<client>/<today>/
 #--------------------------------------------------------------#
 
@@ -27,7 +31,7 @@ from pydantic import ValidationError
 
 from visuals.brand import load_brand
 from visuals.paths import INPUTS_DIR, OUTPUTS_DIR
-from visuals.specs import SIZES, load_batch, spec_from_dict
+from visuals.specs import SIZES, TEMPLATES, load_batch, spec_from_dict
 #--------------------------------------------------------------#
 
 # Read the command-line arguments
@@ -36,7 +40,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--client", required=True, help="brand folder name, e.g. vizcorn")
     src = p.add_mutually_exclusive_group(required=True)
     src.add_argument("--file", help="YAML batch file (one entry per image)")
-    src.add_argument("--template", choices=["quote", "stat", "carousel"])
+    src.add_argument("--template", choices=TEMPLATES)
     p.add_argument("--name", help="file name for a single image")
     p.add_argument("--quote")
     p.add_argument("--author")
@@ -53,6 +57,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--video", action="store_true", help="also make a slideshow MP4 for every entry")
     p.add_argument("--seconds", type=float, help="seconds per slide in videos (default 3.5)")
     p.add_argument("--music", help="background music file for videos (looked up in inputs/<client>/)")
+    p.add_argument("--duration", type=float, help="length of motion videos in seconds (default: auto)")
     return p.parse_args(argv)
 #--------------------------------------------------------------#
 
@@ -66,7 +71,7 @@ def friendly_errors(error: ValidationError) -> str:
         if loc and loc[0].isdigit():                       # batch file: (index, template, field...)
             prefix = f"entry {int(loc[0]) + 1}"
             loc = loc[1:]
-        if loc and loc[0] in ("quote", "stat", "carousel"):
+        if loc and loc[0] in TEMPLATES:
             prefix = f"{prefix} ({loc[0]})" if prefix else loc[0]
             loc = loc[1:]
         field = " ".join(f"slide {int(x) + 1}" if x.isdigit() else f'"{x}"' for x in loc)
@@ -82,7 +87,7 @@ def friendly_errors(error: ValidationError) -> str:
         elif kind == "too_long" and "slides" in field:
             msg = "a carousel can have at most 12 slides"
         elif kind == "union_tag_invalid":
-            msg = "template must be one of: quote, stat, carousel"
+            msg = "template must be one of: " + ", ".join(TEMPLATES)
         else:
             msg = f"{field} {err['msg']}".strip()
         lines.append(f"  {prefix}: {msg}" if prefix else f"  {msg}")
@@ -114,10 +119,13 @@ def spec_from_args(args: argparse.Namespace):
         data["name"] = args.name
     if args.size:
         data["sizes"] = args.size
-    if args.video:
+    motion = args.template.endswith("_motion")
+    if args.video and not motion:
         data["video"] = True
-    if args.seconds:
+    if args.seconds and not motion:
         data["seconds_per_slide"] = args.seconds
+    if args.duration and motion:
+        data["duration"] = args.duration
     if args.music:
         data["music"] = args.music
     if args.template == "carousel":
@@ -150,7 +158,10 @@ def main(argv: list[str] | None = None) -> int:
                 overrides["seconds_per_slide"] = args.seconds
             if args.music:
                 overrides["music"] = args.music
-            specs = [s.model_copy(update=overrides) for s in specs]
+            if args.duration:
+                overrides["duration"] = args.duration
+            specs = [s.model_copy(update={k: v for k, v in overrides.items()
+                                          if k in type(s).model_fields}) for s in specs]
             specs = [type(s).model_validate(s.model_dump()) for s in specs]   # re-check limits
         else:
             specs = [spec_from_args(args)]
@@ -170,6 +181,11 @@ def main(argv: list[str] | None = None) -> int:
             base = spec.name or f"{i:02d}-{spec.template}"
             for size in spec.sizes:
                 try:
+                    if spec.template.endswith("_motion"):  # animated: MP4 + poster
+                        made += renderer.render_motion(spec, brand, size, out_dir, base,
+                                                       resolve_music(args.client, spec.music),
+                                                       keep_html=args.html)
+                        continue
                     files = renderer.render(spec, brand, size, out_dir, base, keep_html=args.html)
                     made += files
                     if spec.video:                          # video frames: separate, temporary

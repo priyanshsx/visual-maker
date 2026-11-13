@@ -9,11 +9,18 @@
 #   - template: stat           -> stat, headline, body (optional), source (optional)
 #   - template: carousel       -> slides: list of {title, body (optional)}
 #
+#   Motion templates (always an MP4 plus a poster PNG of the last frame):
+#   - template: stat_motion    -> same fields as stat; the number counts up
+#   - template: quote_motion   -> same fields as quote; lines appear one by one
+#   Motion entries may set duration (seconds; default: as long as the animation needs,
+#   plus a 2.5s hold) and music. In quotes, *words in asterisks* are shown in brand colour.
+#
 #   Every entry may also set: name (file name), sizes (portrait / square / landscape / story),
 #   and video: true to also get a slideshow MP4 (seconds_per_slide, music optional).
 #--------------------------------------------------------------#
 
 # Imports Libraries
+import re
 from pathlib import Path
 from typing import Annotated, Literal, Union
 
@@ -68,11 +75,65 @@ class Slide(Strict):
 class CarouselSpec(BaseSpec):
     template: Literal["carousel"]
     slides: list[Slide] = Field(min_length=2, max_length=12)
+#--------------------------------------------------------------#
+
+# Motion templates: always video, so no video / seconds_per_slide fields
+class MotionSpec(Strict):
+    name: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]+$")
+    sizes: list[SizeName] = Field(default_factory=lambda: ["portrait"], min_length=1)
+    duration: float | None = Field(default=None, ge=3, le=30)   # None = automatic
+    music: str | None = None
 
 
-Spec = Annotated[Union[QuoteSpec, StatSpec, CarouselSpec], Field(discriminator="template")]
+class QuoteMotionSpec(MotionSpec):
+    template: Literal["quote_motion"]
+    quote: str = Field(min_length=1, max_length=280)
+    author: str | None = Field(default=None, max_length=60)
+    role: str | None = Field(default=None, max_length=80)
+
+
+class StatMotionSpec(MotionSpec):
+    template: Literal["stat_motion"]
+    stat: str = Field(min_length=1, max_length=12)
+    headline: str = Field(min_length=1, max_length=110)
+    body: str | None = Field(default=None, max_length=240)
+    source: str | None = Field(default=None, max_length=120)
+
+
+TEMPLATES = ["quote", "stat", "carousel", "quote_motion", "stat_motion"]
+Spec = Annotated[Union[QuoteSpec, StatSpec, CarouselSpec, QuoteMotionSpec, StatMotionSpec],
+                 Field(discriminator="template")]
 _batch = TypeAdapter(list[Spec])
 _single = TypeAdapter(Spec)
+#--------------------------------------------------------------#
+
+# Split a stat into the part that counts up and the text around it, e.g.
+#   "75%"   -> prefix "",  number 75,   suffix "%"
+#   "€1.2M" -> prefix "€", number 1.2,  suffix "M"  (counts with 1 decimal)
+#   "1,250" -> number 1250, shown with a thousands comma
+# Returns None when counting would look wrong ("3 in 4", "24/7", "Q3", a year like "2025"):
+# those simply fade in instead.
+_STAT = re.compile(r"^(?P<prefix>[^\d]*?)(?P<num>\d{1,3}(?:,\d{3})+|\d+)(?:\.(?P<dec>\d+))?(?P<suffix>[^\d]*)$")
+
+
+def split_stat(stat: str) -> dict | None:
+    match = _STAT.match(stat.strip())
+    if not match:
+        return None
+    num, dec = match.group("num"), match.group("dec") or ""
+    prefix, suffix = match.group("prefix"), match.group("suffix")
+    if re.search(r"[A-Za-z]", prefix):                    # Q3, FY24, H1
+        return None
+    if not dec and "," not in num and len(num) == 4 and 1900 <= int(num) <= 2100 \
+            and not prefix.strip() and not suffix.strip():  # a year
+        return None
+    return {
+        "prefix": prefix,
+        "value": float(num.replace(",", "") + (f".{dec}" if dec else "")),
+        "decimals": len(dec),
+        "thousands": "," if "," in num else "",
+        "suffix": suffix,
+    }
 #--------------------------------------------------------------#
 
 # Read a batch file (a YAML list of entries) and validate every entry

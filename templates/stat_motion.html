@@ -1,0 +1,65 @@
+{% extends "_layout.html" %}
+{% from "_macros.html" import brandmark with context %}
+{#- Stat count-up: frame -> number counts up to the exact figure -> headline, body, source -#}
+{% block slides %}
+{% set count = split_stat(spec.stat) %}
+<section class="slide motion">
+  <div class="accent-bar"></div>
+  <header class="top">{{ brandmark() }}</header>
+  <main class="content" data-fit-box="stat">
+    <div class="fit">
+      <div class="stat" data-fit data-final="{{ spec.stat }}"
+           {% if count %}data-prefix="{{ count.prefix }}" data-value="{{ count.value }}"
+           data-decimals="{{ count.decimals }}" data-thousands="{{ count.thousands }}"
+           data-suffix="{{ count.suffix }}"{% endif %}>{{ spec.stat }}</div>
+      <h1 class="headline" data-fit>{{ spec.headline | nobreak }}</h1>
+      {% if spec.body %}<p class="body" data-fit>{{ spec.body }}</p>{% endif %}
+      {% if spec.source %}<p class="source">Source: {{ spec.source }}</p>{% endif %}
+    </div>
+  </main>
+  <footer class="bottom">
+    <span class="handle">{{ brand.handle or brand.website or "" }}</span>
+    <span class="tagline">{{ brand.footer or "" }}</span>
+  </footer>
+</section>
+<script>
+{% include "_motion.js" %}
+
+const stat = document.querySelector(".stat");
+const headline = document.querySelector(".headline");
+const body = document.querySelector(".body");
+const source = document.querySelector(".source");
+const T = { stat: 0.4, count: 1.6, headline: 1.7, body: 2.15, source: 2.5, footer: 2.7, end: 3.2 };
+
+// The number as it looks partway through the count, in the same format as the final figure
+function formatCount(v) {
+  const d = stat.dataset;
+  let s = v.toFixed(parseInt(d.decimals));
+  if (d.thousands) {
+    const [whole, frac] = s.split(".");
+    s = whole.replace(/\B(?=(\d{3})+(?!\d))/g, d.thousands) + (frac ? "." + frac : "");
+  }
+  return d.prefix + s + d.suffix;
+}
+
+function prepareMotion() {
+  stat.style.transformOrigin = "left bottom";
+  return T.end;
+}
+
+function renderAt(t) {
+  frameAt(t, T.footer);
+  const p = easeOut(prog(t, T.stat, 0.5));
+  stat.style.opacity = p;
+  stat.style.transform = `scale(${0.9 + 0.1 * p})`;
+  if (stat.dataset.value !== undefined) {
+    const c = easeOut(prog(t, T.stat, T.count));
+    // the last frames always show your exact text, never a rounded version of it
+    stat.textContent = c >= 1 ? stat.dataset.final : formatCount(parseFloat(stat.dataset.value) * c);
+  }
+  rise(headline, easeOut(prog(t, T.headline, 0.6)));
+  rise(body, easeOut(prog(t, T.body, 0.6)));
+  rise(source, easeOut(prog(t, T.source, 0.5)), 16);
+}
+</script>
+{% endblock %}

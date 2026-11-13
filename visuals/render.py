@@ -7,6 +7,8 @@
 #   2. Renderer:   open the HTML in a headless browser (Playwright), fit the text,
 #                  screenshot every slide as PNG; carousels also get one PDF
 #                  (LinkedIn carousels are uploaded as PDF documents)
+#   3. Renderer.render_motion: for motion templates, step the animation frame by frame
+#                  and stream every frame into FFmpeg -> MP4 (+ a poster PNG of the last frame)
 # Text that can't fit even at 55% of its size stops with a clear error, never a cut-off image.
 #--------------------------------------------------------------#
 
@@ -15,10 +17,11 @@ import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
+from markupsafe import Markup, escape
 
 from visuals.brand import Brand, font_css_url, font_face_css
 from visuals.paths import TEMPLATES_DIR
-from visuals.specs import SIZES
+from visuals.specs import SIZES, split_stat
 #--------------------------------------------------------------#
 
 # Global variables
@@ -37,7 +40,19 @@ def nobreak(text: str) -> str:
     return _HYPHEN.sub("\u2011", text or "")
 
 
+# *words in asterisks* -> shown in brand colour. Everything else stays plain text.
+_EMPHASIS = re.compile(r"\*([^*]+)\*")
+
+
+def emphasis(text: str) -> Markup:
+    return Markup(_EMPHASIS.sub(r'<span class="em">\1</span>', str(escape(text or ""))))
+
+
+HOLD_SECONDS = 2.5          # motion: how long the finished frame stays on screen
+
 _env.filters["nobreak"] = nobreak
+_env.filters["emphasis"] = emphasis
+_env.globals["split_stat"] = split_stat
 
 
 class TextOverflowError(Exception):
@@ -103,6 +118,48 @@ class Renderer:
                              print_background=True, prefer_css_page_size=True)
                     paths.append(pdf)
             return paths
+        finally:
+            page.close()
+
+    def render_motion(self, spec, brand: Brand, size: str, out_dir: Path, base_name: str,
+                      music: Path | None = None, keep_html: bool = False) -> list[Path]:
+        from visuals.video import FPS, finish_encoder, start_encoder
+        width, height = SIZES[size]
+        html = build_html(spec, brand, size)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if keep_html:
+            (out_dir / f"{base_name}_{size}.html").write_text(html, encoding="utf-8")
+
+        page = self._browser.new_page(viewport={"width": width, "height": height},
+                                      device_scale_factor=1)
+        clip = {"x": 0, "y": 0, "width": width, "height": height}
+        try:
+            page.set_content(html, wait_until="networkidle", timeout=FONT_TIMEOUT_MS)
+            result = page.evaluate("""async () => {
+                await document.fonts.ready;
+                if (window.motionSetup) motionSetup();
+                const overflow = fitAll();
+                return overflow.length ? { overflow } : { end: prepareMotion() };
+            }""")
+            if "overflow" in result:
+                raise TextOverflowError(f"{base_name} ({size}): text too long for "
+                                        f"{', '.join(result['overflow'])}. Shorten it.")
+
+            end = result["end"]
+            length = max(spec.duration, end + 0.5) if spec.duration else end + HOLD_SECONDS
+            video = out_dir / f"{base_name}_{size}.mp4"
+            encoder = start_encoder(video, length, music)
+            try:
+                for frame in range(round(length * FPS)):
+                    page.evaluate("t => renderAt(t)", frame / FPS)
+                    encoder.stdin.write(page.screenshot(type="png", clip=clip))
+            except BrokenPipeError:
+                pass                                   # FFmpeg stopped: finish_encoder says why
+            finish_encoder(encoder)
+
+            poster = out_dir / f"{base_name}_{size}_poster.png"
+            page.screenshot(path=str(poster), clip=clip)   # last frame = the finished design
+            return [video, poster]
         finally:
             page.close()
 #--------------------------------------------------------------#

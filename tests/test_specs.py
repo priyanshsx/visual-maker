@@ -18,7 +18,7 @@ from visuals.specs import load_batch, spec_from_dict
 # Tests: reading files
 def test_example_file_loads():
     specs = load_batch(INPUTS_DIR / "vizcorn" / "example.yaml")
-    assert [s.template for s in specs] == ["quote", "stat", "carousel"]
+    assert [s.template for s in specs] == ["quote", "stat", "carousel", "stat_motion", "quote_motion"]
     assert specs[1].sizes == ["portrait", "landscape"]
 
 

@@ -74,6 +74,7 @@ body {
   font-size: calc(var(--s) * 64px);
   overflow-wrap: break-word;
 }
+.quote .em { color: var(--primary); }
 .attrib { margin-top: calc(var(--s) * 52px); display: flex; flex-direction: column; gap: calc(var(--s) * 6px); }
 .attrib .author { font-weight: 700; font-size: calc(var(--s) * 32px); }
 .attrib .author::before {
@@ -138,3 +139,7 @@ body {
   font-size: calc(var(--s) * 36px);
 }
 .counter { font-weight: 600; }
+
+/* ---- motion templates ---- */
+.motion .stat { font-variant-numeric: tabular-nums; }   /* digits don't jiggle while counting */
+.quote.kinetic .w { display: inline-block; }            /* words can move on their own */

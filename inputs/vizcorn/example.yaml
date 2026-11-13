@@ -6,6 +6,14 @@
 #   quote:    quote (280), author (60, optional), role (80, optional)
 #   stat:     stat (12), headline (110), body (240, optional), source (120, optional)
 #   carousel: slides (2 to 12), each with title (90) and body (320, optional)
+#
+# Motion templates (always make an MP4 + a poster PNG of the final frame):
+#   stat_motion:  same fields as stat; the number counts up to your exact figure
+#                 ("75%", "€1.2M", "1,250" count; "3 in 4", "Q3", "2025" fade in instead)
+#   quote_motion: same fields as quote; the quote appears line by line
+#   duration: 8             optional length in seconds (3 to 30; default: automatic)
+#   music: track.mp3        optional, as for videos
+# In any quote, put *asterisks* around words to show them in brand colour.
 # Every entry may also set:
 #   name:  file name (letters, numbers, - and _)
 #   sizes: [portrait] (default), square, landscape, story. Several at once: [portrait, story]
@@ -20,7 +28,7 @@
 
 - template: quote
   name: clean-data-first
-  quote: "Clean master data before go-live, not after. Every duplicate you migrate becomes a problem you pay for twice."
+  quote: "Clean master data *before* go-live, not after. Every duplicate you migrate becomes a problem you *pay for twice*."
   author: VizCorn
   role: SAP master data and S/4HANA readiness
 
@@ -46,3 +54,17 @@
       body: Agree data owners and rules first. Tools only enforce decisions people have already made.
     - title: Start with a readiness check
       body: Measure your master data before the project plan assumes it's fine.
+
+- template: stat_motion
+  name: example-stat-motion
+  sizes: [portrait, story]
+  stat: "75%"
+  headline: "EXAMPLE ONLY: replace with a real, sourced number"
+  body: "The number counts up, then this text slides in."
+  source: "Put the real source here"
+
+- template: quote_motion
+  name: clean-data-first-motion
+  quote: "Clean master data *before* go-live, not after. Every duplicate you migrate becomes a problem you *pay for twice*."
+  author: VizCorn
+  role: SAP master data and S/4HANA readiness

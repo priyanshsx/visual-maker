@@ -7,7 +7,7 @@
   <main class="content" data-fit-box="quote">
     <div class="fit">
       <div class="qmark">&ldquo;</div>
-      <blockquote class="quote" data-fit>{{ spec.quote | nobreak }}</blockquote>
+      <blockquote class="quote" data-fit>{{ spec.quote | nobreak | emphasis }}</blockquote>
       {% if spec.author or spec.role %}
       <div class="attrib">
         {% if spec.author %}<span class="author">{{ spec.author }}</span>{% endif %}

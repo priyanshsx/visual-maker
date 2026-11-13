@@ -1,0 +1,90 @@
+{% extends "_layout.html" %}
+{% from "_macros.html" import brandmark with context %}
+{#- Kinetic quote: frame -> quote mark -> lines appear one by one, *emphasis* turns brand colour
+    -> author and role -#}
+{% block slides %}
+<section class="slide motion">
+  <div class="accent-bar"></div>
+  <header class="top">{{ brandmark() }}</header>
+  <main class="content" data-fit-box="quote">
+    <div class="fit">
+      <div class="qmark">&ldquo;</div>
+      <blockquote class="quote kinetic" data-fit>{{ spec.quote | nobreak | emphasis }}</blockquote>
+      {% if spec.author or spec.role %}
+      <div class="attrib">
+        {% if spec.author %}<span class="author">{{ spec.author }}</span>{% endif %}
+        {% if spec.role %}<span class="role">{{ spec.role }}</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </main>
+  <footer class="bottom">
+    <span class="handle">{{ brand.handle or brand.website or "" }}</span>
+    <span class="tagline">{{ brand.footer or "" }}</span>
+  </footer>
+</section>
+<script>
+{% include "_motion.js" %}
+
+const quote = document.querySelector(".quote");
+const qmark = document.querySelector(".qmark");
+const author = document.querySelector(".author");
+const role = document.querySelector(".role");
+const LINE_START = 0.7, LINE_GAP = 0.32, LINE_DUR = 0.55;
+let lines = [], T = {};
+
+// Before fitting: wrap every word in a span so lines can be found and animated
+function motionSetup() {
+  const walker = document.createTreeWalker(quote, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    const frag = document.createDocumentFragment();
+    node.textContent.split(/(\s+)/).forEach((part) => {
+      if (!part) return;
+      if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+      const span = document.createElement("span");
+      span.className = "w";
+      span.textContent = part;
+      frag.appendChild(span);
+    });
+    node.parentNode.replaceChild(frag, node);
+  });
+}
+
+// After fitting: group words into the lines the browser actually laid out
+function prepareMotion() {
+  const byTop = new Map();
+  quote.querySelectorAll(".w").forEach((w) => {
+    const top = Math.round(w.offsetTop);
+    if (!byTop.has(top)) byTop.set(top, []);
+    byTop.get(top).push(w);
+  });
+  lines = [...byTop.keys()].sort((a, b) => a - b).map((k) => byTop.get(k));
+  const lastLine = LINE_START + (lines.length - 1) * LINE_GAP;
+  T = { author: lastLine + 0.6, role: lastLine + 0.75, footer: lastLine + 0.9 };
+  T.end = T.footer + 0.6;
+  return T.end;
+}
+
+function renderAt(t) {
+  frameAt(t, T.footer);
+  const q = easeOut(prog(t, 0.3, 0.5));
+  qmark.style.opacity = q;
+  qmark.style.transform = `scale(${0.7 + 0.3 * q})`;
+  const text = cssVar("--text"), primary = cssVar("--primary");
+  lines.forEach((words, i) => {
+    const start = LINE_START + i * LINE_GAP;
+    const p = easeOut(prog(t, start, LINE_DUR));
+    const glow = easeOut(prog(t, start + 0.35, 0.4));     // emphasis turns brand colour
+    words.forEach((w) => {
+      w.style.opacity = p;
+      w.style.transform = `translateY(${(1 - p) * 28 * S}px)`;
+      if (w.closest(".em")) w.style.color = mix(text, primary, glow);
+    });
+  });
+  rise(author, easeOut(prog(t, T.author, 0.5)), 20);
+  rise(role, easeOut(prog(t, T.role, 0.5)), 20);
+}
+</script>
+{% endblock %}
