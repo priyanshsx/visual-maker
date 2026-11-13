@@ -1,0 +1,38 @@
+{% extends "_layout.html" %}
+{% from "_macros.html" import brandmark with context %}
+{% block slides %}
+{% set total = spec.slides | length %}
+{% for slide in spec.slides %}
+{% if loop.first %}
+<section class="slide cover">
+  <header class="top">{{ brandmark(on_primary=True) }}</header>
+  <main class="content" data-fit-box="slide 1">
+    <div class="fit">
+      <h1 class="cover-title" data-fit>{{ slide.title | nobreak }}</h1>
+      {% if slide.body %}<p class="cover-body" data-fit>{{ slide.body }}</p>{% endif %}
+    </div>
+  </main>
+  <footer class="bottom">
+    <span class="handle">{{ brand.handle or brand.website or "" }}</span>
+    <span class="swipe">Swipe &rarr;</span>
+  </footer>
+</section>
+{% else %}
+<section class="slide">
+  <div class="accent-bar"></div>
+  <header class="top">{{ brandmark() }}</header>
+  <main class="content" data-fit-box="slide {{ loop.index }}">
+    <div class="fit">
+      <div class="num">{{ "%02d" | format(loop.index - 1) }}</div>
+      <h2 class="slide-title" data-fit>{{ slide.title | nobreak }}</h2>
+      {% if slide.body %}<p class="slide-body" data-fit>{{ slide.body }}</p>{% endif %}
+    </div>
+  </main>
+  <footer class="bottom">
+    <span class="handle">{{ brand.handle or brand.website or "" }}</span>
+    <span class="counter">{{ loop.index }} / {{ total }}</span>
+  </footer>
+</section>
+{% endif %}
+{% endfor %}
+{% endblock %}

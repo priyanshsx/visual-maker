@@ -1,0 +1,138 @@
+/* Shared styles for every template. Sizes use --s (1 for 1080px-wide square/portrait,
+   smaller for landscape) so the same design works at every output size. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #ffffff; }
+body {
+  font-family: var(--font), "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* Even line lengths for big text; avoids a lonely last word or a split "go-live" */
+.quote, .headline, .cover-title, .slide-title { text-wrap: balance; }
+.body, .slide-body, .cover-body { text-wrap: pretty; }
+
+/* ---- slide frame ---- */
+.slide {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  padding: calc(var(--s) * 84px) calc(var(--s) * 96px) calc(var(--s) * 72px);
+  break-after: page;
+}
+.accent-bar {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: calc(var(--s) * 16px);
+  background: var(--primary);
+}
+.top {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  height: calc(var(--s) * 60px);
+}
+.logo-wrap { height: 100%; display: flex; align-items: center; }
+.logo-wrap.on-primary {
+  background: #ffffff; border-radius: calc(var(--s) * 14px);
+  padding: calc(var(--s) * 10px) calc(var(--s) * 18px);
+}
+.logo { height: 100%; max-width: calc(var(--s) * 420px); object-fit: contain; object-position: left; }
+.wordmark {
+  font-weight: 800; letter-spacing: -0.02em;
+  font-size: calc(var(--s) * 40px);
+  color: var(--primary);
+}
+.content {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: calc(var(--s) * 36px) 0;
+}
+.bottom {
+  flex: none;
+  display: flex; justify-content: space-between; align-items: center; gap: calc(var(--s) * 24px);
+  font-size: calc(var(--s) * 24px);
+  color: var(--muted);
+  border-top: calc(var(--s) * 3px) solid var(--rule);
+  padding-top: calc(var(--s) * 26px);
+}
+.bottom .handle { font-weight: 600; color: var(--text); }
+.bottom .tagline { text-align: right; }
+
+/* ---- quote ---- */
+.qmark {
+  font-weight: 800; color: var(--primary);
+  font-size: calc(var(--s) * 220px);
+  line-height: 0.75; height: calc(var(--s) * 120px);
+}
+.quote {
+  font-weight: 600; letter-spacing: -0.015em; line-height: 1.22;
+  font-size: calc(var(--s) * 64px);
+  overflow-wrap: break-word;
+}
+.attrib { margin-top: calc(var(--s) * 52px); display: flex; flex-direction: column; gap: calc(var(--s) * 6px); }
+.attrib .author { font-weight: 700; font-size: calc(var(--s) * 32px); }
+.attrib .author::before {
+  content: ""; display: inline-block; vertical-align: middle;
+  width: calc(var(--s) * 44px); height: calc(var(--s) * 4px);
+  background: var(--primary); margin-right: calc(var(--s) * 18px);
+}
+.attrib .role { color: var(--muted); font-size: calc(var(--s) * 26px); padding-left: calc(var(--s) * 62px); }
+
+/* ---- stat ---- */
+.stat {
+  font-weight: 800; color: var(--primary); white-space: nowrap;
+  letter-spacing: -0.045em; line-height: 1;
+  font-size: calc(var(--s) * 230px);
+}
+.headline {
+  margin-top: calc(var(--s) * 36px);
+  font-weight: 700; letter-spacing: -0.015em; line-height: 1.15;
+  font-size: calc(var(--s) * 62px);
+  overflow-wrap: break-word;
+}
+.body {
+  margin-top: calc(var(--s) * 28px);
+  color: var(--muted); line-height: 1.45;
+  font-size: calc(var(--s) * 32px);
+}
+.source {
+  margin-top: calc(var(--s) * 40px);
+  color: var(--muted); font-size: calc(var(--s) * 22px);
+}
+
+/* ---- carousel ---- */
+.slide.cover { background: var(--primary); color: var(--on-primary); }
+.slide.cover .wordmark { color: var(--on-primary); }
+.slide.cover .bottom { color: var(--on-primary); border-top-color: rgba(255, 255, 255, 0.35); }
+.slide.cover .bottom .handle { color: var(--on-primary); }
+.cover-title {
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+  font-size: calc(var(--s) * 96px);
+  overflow-wrap: break-word;
+}
+.cover-body {
+  margin-top: calc(var(--s) * 36px); opacity: 0.9; line-height: 1.4;
+  font-size: calc(var(--s) * 36px);
+}
+.swipe { font-weight: 600; }
+.num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: calc(var(--s) * 84px); height: calc(var(--s) * 84px);
+  border-radius: 50%; background: var(--primary); color: var(--on-primary);
+  font-weight: 800; font-size: calc(var(--s) * 34px);
+  margin-bottom: calc(var(--s) * 44px);
+}
+.slide-title {
+  font-weight: 700; letter-spacing: -0.02em; line-height: 1.12;
+  font-size: calc(var(--s) * 68px);
+  overflow-wrap: break-word;
+}
+.slide-body {
+  margin-top: calc(var(--s) * 32px);
+  color: var(--muted); line-height: 1.45;
+  font-size: calc(var(--s) * 36px);
+}
+.counter { font-weight: 600; }

@@ -1,0 +1,41 @@
+# Example batch: one entry per image. Run with:
+#   python -m visuals --client vizcorn --file example.yaml
+# Images land in outputs/vizcorn/<today>/
+#
+# Templates and their fields (limits in brackets):
+#   quote:    quote (280), author (60, optional), role (80, optional)
+#   stat:     stat (12), headline (110), body (240, optional), source (120, optional)
+#   carousel: slides (2 to 12), each with title (90) and body (320, optional)
+# Every entry may also set:
+#   name:  file name (letters, numbers, - and _)
+#   sizes: [portrait] (default), square, landscape. Several at once: [portrait, landscape]
+#
+# Rule: only use numbers you can back up, and put the source in "source".
+
+- template: quote
+  name: clean-data-first
+  quote: "Clean master data before go-live, not after. Every duplicate you migrate becomes a problem you pay for twice."
+  author: VizCorn
+  role: SAP master data and S/4HANA readiness
+
+- template: stat
+  name: example-stat
+  sizes: [portrait, landscape]
+  stat: "3 in 4"
+  headline: "EXAMPLE ONLY: replace with a real, sourced number"
+  body: "This shows how the stat card looks. Swap in a figure you can cite before posting."
+  source: "Put the real source here"
+
+- template: carousel
+  name: why-s4-projects-slip
+  slides:
+    - title: Why S/4HANA projects slip
+      body: It's rarely the software. It's the data you bring with you.
+    - title: Duplicate vendors nobody owns
+      body: Two records for one supplier means two payment terms, two bank accounts and one audit finding.
+    - title: Half-empty material masters
+      body: Fields left blank in ECC become hard stops in S/4HANA. Find them before the mock load does.
+    - title: No one decides what "clean" means
+      body: Agree data owners and rules first. Tools only enforce decisions people have already made.
+    - title: Start with a readiness check
+      body: Measure your master data before the project plan assumes it's fine.

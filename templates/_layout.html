@@ -1,0 +1,54 @@
+{#- Shared page for every template. Each template fills the "slides" block with one or more
+    <section class="slide"> elements. Sizes come from render.py (w, h) and the scale s. -#}
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+{% if font_url %}<link rel="stylesheet" href="{{ font_url }}">{% endif %}
+<style>
+{{ font_css | safe }}
+:root {
+  --primary: {{ brand.colors.primary }};
+  --text: {{ brand.colors.text }};
+  --muted: {{ brand.colors.muted }};
+  --bg: {{ brand.colors.background }};
+  --surface: {{ brand.colors.surface }};
+  --on-primary: {{ brand.colors.on_primary }};
+  --rule: {{ brand.colors.primary }}33;
+  --font: "{{ brand.font.family }}";
+  --s: {{ s }};
+}
+@page { size: {{ w }}px {{ h }}px; margin: 0; }
+.slide { width: {{ w }}px; height: {{ h }}px; }
+{{ css | safe }}
+</style>
+</head>
+<body class="size-{{ size }}">
+{% block slides %}{% endblock %}
+
+
+
+<script>
+// Shrink text that doesn't fit its box. Every [data-fit-box] holds one .fit wrapper; all
+// [data-fit] elements inside it shrink together (down to 55%) until the wrapper fits.
+// Returns the names of boxes that still overflow, so render.py can stop with a clear error.
+function fitAll() {
+  const overflow = [];
+  document.querySelectorAll("[data-fit-box]").forEach((box) => {
+    const inner = box.querySelector(".fit");
+    const els = [...box.querySelectorAll("[data-fit]")];
+    const base = els.map((el) => parseFloat(getComputedStyle(el).fontSize));
+    const tooBig = () => inner.getBoundingClientRect().height > box.clientHeight + 1
+      || els.some((el) => el.scrollWidth > el.clientWidth + 1);
+    let f = 1;
+    while (tooBig() && f > 0.55) {
+      f -= 0.03;
+      els.forEach((el, i) => { el.style.fontSize = (base[i] * f) + "px"; });
+    }
+    if (tooBig()) overflow.push(box.dataset.fitBox || "text");
+  });
+  return overflow;
+}
+</script>
+</body>
+</html>

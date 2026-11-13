@@ -1,0 +1,25 @@
+# VizCorn brand kit. Colours and font are used by every template.
+# Source: vizcorn.com (primary colour = the site's theme colour #155EEF, name spelled "VizCorn").
+# Font and the other colours are placeholders until VizCorn confirms their brand guide.
+
+display_name: VizCorn
+website: vizcorn.com
+handle: vizcorn.com
+footer: From Complex Systems to Clear Business Outcomes
+
+# Put the logo file in this folder (SVG best, or a large PNG with a transparent background)
+# and set the file name here. Until the file exists, "VizCorn" is shown as a text wordmark.
+logo: logo.svg
+
+colors:
+  primary: "#155EEF"      # VizCorn blue (from their website)
+  text: "#0B1B3F"         # dark navy for headings and body
+  muted: "#51607F"        # secondary text
+  background: "#F5F8FF"   # very light blue-grey slide background
+  surface: "#FFFFFF"
+  on_primary: "#FFFFFF"   # text on blue
+
+font:
+  family: Inter           # placeholder until VizCorn confirms their font
+  folder: fonts/inter     # bundled in the repo, so images look the same offline and on cron
+  weights: [400, 600, 700, 800]

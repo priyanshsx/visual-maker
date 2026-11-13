@@ -1,0 +1,8 @@
+{#- Logo if the brand has a logo file, otherwise the brand name as a text wordmark. -#}
+{%- macro brandmark(on_primary=False) -%}
+  {%- if brand.logo_data_uri -%}
+    <span class="logo-wrap{% if on_primary %} on-primary{% endif %}"><img class="logo" src="{{ brand.logo_data_uri }}" alt="{{ brand.display_name }}"></span>
+  {%- else -%}
+    <span class="wordmark">{{ brand.display_name }}</span>
+  {%- endif -%}
+{%- endmacro %}
