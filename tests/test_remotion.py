@@ -193,3 +193,44 @@ def test_recap_props_shape():
     assert props["bigPicture"] == {"label": "The bigger picture", "title": "One line.",
                                    "pointsLabel": None, "points": []}
     assert props["cards"][0] == {"icon": "flask", "name": "A", "org": None, "topic": "T", "body": "B"}
+
+
+# ---- explainer and talking_head (basic templates) ----
+def test_explainer_rules_and_props():
+    hook = {"kind": "hook", "text": "Why?"}
+    with pytest.raises(ValidationError):                  # a chart needs a source
+        spec_from_dict({"template": "explainer", "scenes": [hook, {"kind": "chart", "image": CHART, "caption": "c"}]})
+    with pytest.raises(ValidationError, match="60 seconds"):
+        spec_from_dict({"template": "explainer", "scenes": [{**hook, "seconds": 10}] * 7})
+    spec = spec_from_dict({"template": "explainer", "scenes": [
+        hook, {"kind": "chart", "image": CHART, "caption": "c", "source": "s", "zoom": 1.5}]})
+    props = build_props(spec, load_brand("quartermaster"), "story")
+    assert (props["width"], props["height"]) == (1080, 1920)
+    assert [s["frames"] for s in props["scenes"]] == [90, 150]          # 3s hook, 5s chart
+    assert props["scenes"][1]["image"]["src"].startswith("data:image/png")
+
+
+def test_talking_head_rules():
+    base = {"template": "talking_head", "footage": "talk.mp4"}
+    title = {"kind": "title", "text": "Name", "at": 1, "seconds": 4}
+    spec_from_dict({**base, "overlays": [title, {**title, "at": 5}]})
+    with pytest.raises(ValidationError, match="overlap"):
+        spec_from_dict({**base, "overlays": [title, {**title, "at": 3}]})
+    with pytest.raises(ValidationError, match="time order"):
+        spec_from_dict({**base, "overlays": [{**title, "at": 9}, title]})
+    with pytest.raises(ValidationError):
+        spec_from_dict({**base, "overlays": [{"kind": "stat", "at": 1, "value": "1", "label": "x"}]})  # no source
+
+
+def test_talking_head_props_use_original_timestamps(monkeypatch):
+    monkeypatch.setattr(remotion_bridge, "media_seconds", lambda path: 20.0)
+    spec = spec_from_dict({"template": "talking_head", "footage": "/x/talk.mp4", "start": 2,
+                           "overlays": [{"kind": "title", "text": "Name", "at": 3, "seconds": 4}]})
+    props = build_props(spec, load_brand("quartermaster"), "story")
+    assert props["footage"] == "talk.mp4" and props["startFrame"] == 60
+    assert props["durationFrames"] == 540                                 # 2s..20s
+    assert props["overlays"][0]["from"] == 30 and props["overlays"][0]["frames"] == 120
+    bad = spec_from_dict({"template": "talking_head", "footage": "/x/talk.mp4",
+                          "overlays": [{"kind": "title", "text": "Name", "at": 18, "seconds": 4}]})
+    with pytest.raises(RemotionError, match="outside the video"):
+        build_props(bad, load_brand("quartermaster"), "story")

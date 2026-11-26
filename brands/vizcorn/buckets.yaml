@@ -1,0 +1,43 @@
+# Content buckets for VizCorn (see brands/quartermaster/buckets.yaml for how buckets work).
+
+linkedin_image:
+  label: LinkedIn images
+  status: ready
+  notes: More creative layouts and 3D heroes will be added; event_recap is the first.
+  model: fast
+  formats:
+    image:
+      templates: [event_recap, stat, carousel, quote]
+      defaults: {sizes: [portrait]}
+  brief: |
+    Turn a LinkedIn post into one rich, attention-grabbing image that carries as much of the
+    post's content as fits: a clear headline, the key numbers, the main takeaways (with who said
+    them), the bigger-picture point and a closing line. Write for operations, IT and finance
+    leaders at mid-sized manufacturers and distributors.
+  rules:
+    - Every fact, number, name and organisation exactly as in the post. Add nothing new.
+    - Do not attribute a statement to a person unless the post does.
+    - Never present projects from the team's previous employers as VizCorn work or name those clients.
+    - Calm, professional tone. No hype.
+
+generic_video:
+  label: Generic explainer videos (IT, data analytics, AI)
+  status: samples_needed
+  notes: >
+    Sub-templates are not decided yet. Make 3 to 4 samples on one topic, share them with the
+    VizCorn team, and lock the approved styles as sub-templates. Until then this uses the basic
+    explainer template.
+  model: smart
+  formats:
+    video:
+      templates: [explainer]
+      defaults: {sizes: [portrait, story]}
+  brief: |
+    Explain one topic in IT, data analytics or AI (for example SAP master data, S/4HANA
+    readiness, data quality) for operations and finance leaders at mid-sized manufacturers and
+    distributors. Problem, why it matters, what good looks like, one next step. 20 to 40 seconds.
+  rules:
+    - No invented statistics; only numbers from the idea or attached files, with a source.
+    - Plain language, no jargon without a one-line explanation.
+    - Never present projects from the team's previous employers as VizCorn work or name those clients.
+    - End with vizcorn.com.

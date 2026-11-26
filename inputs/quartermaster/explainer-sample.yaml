@@ -1,0 +1,30 @@
+# Sample explainer (template: explainer, BASIC: the design will change). Vertical video for X / IG.
+# Numbers come from btc-spx-correlation.yaml (Quartermaster app, daily returns 2014-2026).
+# Run: python -m visuals --client quartermaster --file explainer-sample.yaml
+
+- template: explainer
+  name: explainer-sample
+  sizes: [story]
+  scenes:
+    - kind: hook
+      text: "Does Bitcoin really move with *stocks*?"
+    - kind: chart
+      image: correlations-chart.png
+      caption: "Rolling 52-week correlation with *Bitcoin*"
+      source: "Quartermaster · Correlations page"
+      focus: [0.8, 0.45]
+      zoom: 1.4
+    - kind: stat
+      value: "0.228"
+      label: "Bitcoin vs S&P 500, daily returns, 2014–2026"
+      note: "Close to no relationship. Even week to week, they moved the same way only 57% of the time."
+      source: "Quartermaster · correlation of daily returns"
+    - kind: points
+      title: "How to read a *correlation*"
+      items:
+        - "+1: they move together"
+        - "0: no relationship"
+        - "−1: they move in opposite directions"
+    - kind: cta
+      text: "Check any pair *yourself*"
+      url: app.quartermasterlabs.com

@@ -1,0 +1,27 @@
+# Sample talking head (template: talking_head, BASIC: the design will change).
+# Put your recording in inputs/quartermaster/ and change "footage" to its file name.
+# "at" = seconds into your ORIGINAL recording (so it matches transcript timestamps).
+# Run: python -m visuals --client quartermaster --file talking-head-sample.yaml
+
+- template: talking_head
+  name: talking-head-sample
+  sizes: [story]
+  footage: talk.mp4
+  overlays:
+    - kind: title
+      at: 0.5
+      seconds: 3.5
+      text: Priyansh Saxena
+      subtext: Founder, Quartermaster
+    - kind: chart
+      at: 4.5
+      seconds: 5
+      image: correlations-chart.png
+      caption: Rolling 52-week correlation with Bitcoin
+      source: Quartermaster · Correlations page
+    - kind: stat
+      at: 10
+      seconds: 4
+      value: "0.228"
+      label: Bitcoin vs S&P 500, daily returns, 2014–2026
+      source: Quartermaster · correlation of daily returns

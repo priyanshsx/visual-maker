@@ -25,7 +25,8 @@ from PIL import Image
 from visuals.brand import Brand, font_face_css
 from visuals.paths import ROOT
 from visuals.render import image_data_uri
-from visuals.specs import DEMO_INTRO, DEMO_MIN_STEP, DEMO_OUTRO, DEMO_STEP, SIZES
+from visuals.specs import (DEMO_INTRO, DEMO_MIN_STEP, DEMO_OUTRO, DEMO_STEP, SIZES, scene_seconds,
+                           scene_total)
 from visuals.video import AUDIO_ARGS, VideoError, audio_filter, even, ffmpeg_path
 #--------------------------------------------------------------#
 
@@ -34,7 +35,8 @@ REMOTION_DIR = ROOT / "remotion"
 ENTRY = "src/index.ts"
 FPS = 30
 INTRO_SECONDS, STEP_SECONDS, OUTRO_SECONDS = DEMO_INTRO, DEMO_STEP, DEMO_OUTRO
-COMPOSITIONS = {"device_demo": "DeviceDemo", "event_recap": "EventRecap"}
+COMPOSITIONS = {"device_demo": "DeviceDemo", "event_recap": "EventRecap",
+                "explainer": "Explainer", "talking_head": "TalkingHead"}
 RECAP_SECONDS = 5.0              # animated event_recap; the image is its last frame
 #--------------------------------------------------------------#
 
@@ -97,15 +99,68 @@ def recap_props(spec, brand: Brand, size: str) -> dict:
     }
 
 
+# Props for an explainer: each scene with its length in frames; chart images embedded
+def explainer_props(spec, brand: Brand, size: str) -> dict:
+    width, height = SIZES[size]
+    scenes = []
+    for scene in spec.scenes:
+        data = scene.model_dump(exclude={"seconds"})
+        if scene.kind == "chart":
+            data["image"] = image_props(scene.image)
+            data["focus"] = list(scene.focus)
+        data["frames"] = round(scene_seconds(scene) * FPS)
+        scenes.append(data)
+    return {"width": even(width), "height": even(height), "brand": brand_props(brand),
+            "look": spec.look, "scenes": scenes}
+
+
+# Length of a video file in seconds (ffprobe comes with FFmpeg)
+def media_seconds(path: str) -> float:
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None:
+        raise RemotionError("ffprobe is missing (it comes with FFmpeg). Mac: brew install ffmpeg")
+    result = subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration",
+                             "-of", "csv=p=0", path], capture_output=True, text=True)
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        raise RemotionError(f"Could not read the length of {path}: {result.stderr.strip()[-300:]}")
+
+
+# Props for a talking head. Overlay times ("at") are seconds in the ORIGINAL footage, so they
+# match a transcript's timestamps even when start/end trim the video.
+def talking_head_props(spec, brand: Brand, size: str) -> dict:
+    width, height = SIZES[size]
+    end = spec.end if spec.end is not None else media_seconds(spec.footage)
+    overlays = []
+    for o in spec.overlays:
+        if o.at < spec.start or o.at + o.seconds > end + 0.01:
+            raise RemotionError(f"overlay at {o.at}s is outside the video ({spec.start}s to {end:.1f}s)")
+        data = o.model_dump(exclude={"at", "seconds"})
+        if o.kind == "chart":
+            data["image"] = image_props(o.image)
+        data["from"] = round((o.at - spec.start) * FPS)
+        data["frames"] = round(o.seconds * FPS)
+        overlays.append(data)
+    return {"width": even(width), "height": even(height), "brand": brand_props(brand),
+            "footage": Path(spec.footage).name, "startFrame": round(spec.start * FPS),
+            "durationFrames": round((end - spec.start) * FPS), "overlays": overlays}
+
+
 # Everything the composition needs for one size
 def build_props(spec, brand: Brand, size: str) -> dict:
     if spec.template == "event_recap":
         return recap_props(spec, brand, size)
+    if spec.template == "explainer":
+        return explainer_props(spec, brand, size)
+    if spec.template == "talking_head":
+        return talking_head_props(spec, brand, size)
     width, height = SIZES[size]
     images = [spec.image] + [s.image for s in spec.steps if s.image and s.image != spec.image]
     images = list(dict.fromkeys(images))                  # unique, main screenshot first
     return {
         "look": spec.look,
+        "textStyle": spec.text_style,
         "width": even(width),
         "height": even(height),
         "brand": brand_props(brand),
@@ -166,6 +221,18 @@ def add_music(video: Path, music: Path, length: float, out_path: Path) -> None:
         raise RemotionError(f"Adding music failed: {result.stderr.strip()[-500:]}")
 #--------------------------------------------------------------#
 
+# Video length (seconds) and which frame becomes the poster PNG
+def timing(spec, props: dict) -> tuple[float, int]:
+    if spec.template == "explainer":
+        first = props["scenes"][0]["frames"]
+        return scene_total(spec.scenes), max(first - 12, 0)        # the opening line, fully shown
+    if spec.template == "talking_head":
+        frames = props["durationFrames"]
+        first = props["overlays"][0] if props["overlays"] else None
+        return frames / FPS, (first["from"] + first["frames"] // 2) if first else 0
+    return total_seconds(spec), round(total_seconds(spec) * FPS) - 1   # device_demo: closing frame
+#--------------------------------------------------------------#
+
 # Image templates: a sharp PNG at twice the size (the last frame), plus an MP4 if asked
 def render_image(npx: str, composition: str, props: dict, spec, out_dir: Path, base_name: str,
                  size: str, keep_props: bool) -> list[Path]:
@@ -200,18 +267,20 @@ def render_remotion(spec, brand: Brand, size: str, out_dir: Path, base_name: str
         return render_image(npx, composition, props, spec, out_dir, base_name, size, keep_props)
     video = out_dir / f"{base_name}_{size}.mp4"
     poster = out_dir / f"{base_name}_{size}.png"
-    last_frame = round(total_seconds(spec) * FPS) - 1
+    length, poster_frame = timing(spec, props)
 
     with tempfile.TemporaryDirectory() as tmp:
         props_file = Path(tmp) / "props.json"
         props_file.write_text(json.dumps(props), encoding="utf-8")
         silent = Path(tmp) / "silent.mp4" if music else video
         flags = [f"--props={props_file}", *render_flags()]
+        if spec.template == "talking_head":               # footage is served from its own folder
+            flags.append(f"--public-dir={Path(spec.footage).parent}")
         run([npx, "remotion", "render", ENTRY, composition, str(silent), *flags], "Remotion render")
-        run([npx, "remotion", "still", ENTRY, composition, str(poster), f"--frame={last_frame}",
+        run([npx, "remotion", "still", ENTRY, composition, str(poster), f"--frame={poster_frame}",
              *flags], "Remotion poster")
         if music:
-            add_music(silent, music, total_seconds(spec), video)
+            add_music(silent, music, length, video)
         made = [video, poster]
         if keep_props:                                     # for previewing in Remotion Studio
             kept = out_dir / f"{base_name}_{size}.props.json"

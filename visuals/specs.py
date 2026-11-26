@@ -16,12 +16,18 @@
 #   - template: quote_motion   -> same fields as quote; lines appear one by one
 #   - template: device_demo    -> title, image (a screenshot), steps: list of {caption, focus,
 #                                 zoom, marker, image (optional)}, kicker, cta and
-#                                 look: clean | cinematic (optional).
+#                                 look: clean | cinematic, text_style: animated | plain.
 #                                 A 3D screen the camera glides over; made with Remotion
 #                                 (needs Node.js: cd remotion && npm install, once).
 #   - template: event_recap    -> one infographic image about an event: badge, title,
 #                                 title_accent, intro, stats, cards (speakers), big_picture,
 #                                 closing. Portrait only. Made with Remotion (3D hero).
+#   - template: explainer      -> scenes: list of hook / chart / stat / points / text / cta
+#                                 (each may set seconds). Vertical video by default.
+#                                 Basic template: the design will change.
+#   - template: talking_head   -> footage (your video), start/end (optional), overlays: list of
+#                                 title / stat / chart / points cards shown at given seconds.
+#                                 Basic template: the design will change.
 #   Motion entries may set duration (seconds; default: as long as the animation needs,
 #   plus a 2.5s hold) and music. In quotes, *words in asterisks* are shown in brand colour.
 #
@@ -141,6 +147,7 @@ class DeviceDemoSpec(MotionSpec):
     steps: list[DemoStep] = Field(min_length=1, max_length=6)
     cta: str | None = Field(default=None, max_length=60)     # closing button, e.g. a URL
     look: Literal["clean", "cinematic"] = "clean"   # cinematic: fog, reflections, glow, film grain
+    text_style: Literal["animated", "plain"] = "animated"   # plain: text simply fades, no movement
 
     @model_validator(mode="after")
     def duration_fits_steps(self):
@@ -197,13 +204,158 @@ class EventRecapSpec(Strict):
     closing: str = Field(min_length=1, max_length=130)
 
 
+# ---- explainer: a vertical video made of scenes (basic template, will be redesigned) ----
+SCENE_SECONDS = {"hook": 3.0, "chart": 5.0, "stat": 4.0, "points": 5.0, "text": 4.0, "cta": 3.0}
+Seconds = Annotated[float, Field(ge=2, le=10)]
+
+
+class HookScene(Strict):                     # opening line, big text
+    kind: Literal["hook"]
+    text: str = Field(min_length=1, max_length=90)            # *words* in brand colour
+    seconds: Seconds | None = None
+
+
+class ChartScene(Strict):                    # a chart image, slowly pushing in to a point
+    kind: Literal["chart"]
+    image: str                                # chart file in inputs/<client>/ (from the app or your script)
+    caption: str = Field(min_length=1, max_length=110)
+    source: str = Field(min_length=1, max_length=90)          # where the chart comes from
+    focus: tuple[Unit, Unit] = (0.5, 0.5)
+    zoom: float = Field(default=1, ge=1, le=2.5)
+    seconds: Seconds | None = None
+
+
+class StatScene(Strict):                     # one big number
+    kind: Literal["stat"]
+    value: str = Field(min_length=1, max_length=12)
+    label: str = Field(min_length=1, max_length=80)
+    note: str | None = Field(default=None, max_length=120)
+    source: str = Field(min_length=1, max_length=90)
+    seconds: Seconds | None = None
+
+
+class PointsScene(Strict):                   # a short list
+    kind: Literal["points"]
+    title: str = Field(min_length=1, max_length=70)
+    items: list[Annotated[str, Field(min_length=1, max_length=70)]] = Field(min_length=2, max_length=4)
+    seconds: Seconds | None = None
+
+
+class TextScene(Strict):                     # a sentence on its own
+    kind: Literal["text"]
+    text: str = Field(min_length=1, max_length=140)
+    seconds: Seconds | None = None
+
+
+class CtaScene(Strict):                      # closing call to action
+    kind: Literal["cta"]
+    text: str = Field(min_length=1, max_length=70)
+    url: str | None = Field(default=None, max_length=50)
+    seconds: Seconds | None = None
+
+
+Scene = Annotated[Union[HookScene, ChartScene, StatScene, PointsScene, TextScene, CtaScene],
+                  Field(discriminator="kind")]
+
+
+class ExplainerSpec(Strict):
+    template: Literal["explainer"]
+    name: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]+$")
+    sizes: list[SizeName] = Field(default_factory=lambda: ["story"], min_length=1)
+    look: Literal["clean", "cinematic"] = "clean"   # cinematic: film grain + vignette
+    music: str | None = None
+    scenes: list[Scene] = Field(min_length=2, max_length=12)
+
+    @model_validator(mode="after")
+    def fits_length(self):
+        if scene_total(self.scenes) > 60:
+            raise ValueError("explainer is longer than 60 seconds: use fewer or shorter scenes")
+        return self
+
+
+def scene_seconds(scene) -> float:
+    return scene.seconds or SCENE_SECONDS[scene.kind]
+
+
+def scene_total(scenes) -> float:
+    return round(sum(scene_seconds(s) for s in scenes), 3)
+
+
+# ---- talking_head: your own footage with stat / chart / title cards on top (basic template) ----
+class TitleOverlay(Strict):                  # lower third: a name or a topic
+    kind: Literal["title"]
+    at: float = Field(ge=0)                   # seconds into the footage
+    seconds: float = Field(default=4, ge=1.5, le=15)
+    text: str = Field(min_length=1, max_length=70)
+    subtext: str | None = Field(default=None, max_length=70)
+
+
+class StatOverlay(Strict):
+    kind: Literal["stat"]
+    at: float = Field(ge=0)
+    seconds: float = Field(default=4, ge=1.5, le=15)
+    value: str = Field(min_length=1, max_length=12)
+    label: str = Field(min_length=1, max_length=80)
+    source: str = Field(min_length=1, max_length=90)
+
+
+class ChartOverlay(Strict):
+    kind: Literal["chart"]
+    at: float = Field(ge=0)
+    seconds: float = Field(default=5, ge=1.5, le=15)
+    image: str
+    caption: str | None = Field(default=None, max_length=90)
+    source: str = Field(min_length=1, max_length=90)
+
+
+class PointsOverlay(Strict):
+    kind: Literal["points"]
+    at: float = Field(ge=0)
+    seconds: float = Field(default=5, ge=1.5, le=15)
+    title: str = Field(min_length=1, max_length=60)
+    items: list[Annotated[str, Field(min_length=1, max_length=60)]] = Field(min_length=2, max_length=4)
+
+
+Overlay = Annotated[Union[TitleOverlay, StatOverlay, ChartOverlay, PointsOverlay],
+                    Field(discriminator="kind")]
+
+
+class TalkingHeadSpec(Strict):
+    template: Literal["talking_head"]
+    name: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]+$")
+    sizes: list[SizeName] = Field(default_factory=lambda: ["story"], min_length=1)
+    footage: str                              # your video file in inputs/<client>/
+    start: float = Field(default=0, ge=0)     # trim: use the footage from here (seconds)
+    end: float | None = Field(default=None, gt=0)   # ...to here (default: the end)
+    overlays: list[Overlay] = Field(default_factory=list, max_length=30)
+
+    @model_validator(mode="after")
+    def overlays_in_order(self):
+        if self.end is not None and self.end <= self.start:
+            raise ValueError("end must be after start")
+        times = [o.at for o in self.overlays]
+        if times != sorted(times):
+            raise ValueError("overlays must be listed in time order")
+        for a, b in zip(self.overlays, self.overlays[1:]):
+            if a.at + a.seconds > b.at + 0.01:
+                raise ValueError(f"overlays at {a.at}s and {b.at}s overlap")
+        return self
+
+
 TEMPLATES = ["quote", "stat", "carousel", "title", "quote_motion", "stat_motion", "device_demo",
-             "event_recap"]
+             "event_recap", "explainer", "talking_head"]
 Spec = Annotated[Union[QuoteSpec, StatSpec, CarouselSpec, TitleSpec, QuoteMotionSpec,
-                       StatMotionSpec, DeviceDemoSpec, EventRecapSpec],
+                       StatMotionSpec, DeviceDemoSpec, EventRecapSpec, ExplainerSpec,
+                       TalkingHeadSpec],
                  Field(discriminator="template")]
 _batch = TypeAdapter(list[Spec])
 _single = TypeAdapter(Spec)
+
+# template name -> its spec class (used by the idea command to ask the LLM for the right shape)
+SPEC_CLASSES = {cls.model_fields["template"].annotation.__args__[0]: cls
+                for cls in (QuoteSpec, StatSpec, CarouselSpec, TitleSpec, QuoteMotionSpec,
+                            StatMotionSpec, DeviceDemoSpec, EventRecapSpec, ExplainerSpec,
+                            TalkingHeadSpec)}
 #--------------------------------------------------------------#
 
 # Split a stat into the part that counts up and the text around it, e.g.

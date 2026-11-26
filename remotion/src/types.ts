@@ -33,6 +33,7 @@ export type Look = "clean" | "cinematic";
 
 export type DeviceDemoProps = {
   look: Look;                   // clean = flat background; cinematic = fog, reflections, glow, grain
+  textStyle: "animated" | "plain";   // plain = text simply fades in and out, no movement
   width: number;
   height: number;
   brand: BrandProps;
@@ -68,4 +69,38 @@ export type EventRecapProps = {
   bigPicture: { label: string; title: string; pointsLabel: string | null; points: RecapPoint[] };
   closing: string;
   seconds: number;               // length of the animated version; the image is its last frame
+};
+
+// ---- explainer: vertical video made of scenes ----
+export type ExplainerScene =
+  | { kind: "hook"; text: string }
+  | { kind: "chart"; image: DemoImage; caption: string; source: string; focus: [number, number]; zoom: number }
+  | { kind: "stat"; value: string; label: string; note: string | null; source: string }
+  | { kind: "points"; title: string; items: string[] }
+  | { kind: "text"; text: string }
+  | { kind: "cta"; text: string; url: string | null };
+
+export type ExplainerProps = {
+  width: number;
+  height: number;
+  brand: BrandProps;
+  look: Look;
+  scenes: (ExplainerScene & { frames: number })[];
+};
+
+// ---- talking head: footage with cards on top ----
+export type HeadOverlay =
+  | { kind: "title"; text: string; subtext: string | null }
+  | { kind: "stat"; value: string; label: string; source: string }
+  | { kind: "chart"; image: DemoImage; caption: string | null; source: string }
+  | { kind: "points"; title: string; items: string[] };
+
+export type TalkingHeadProps = {
+  width: number;
+  height: number;
+  brand: BrandProps;
+  footage: string;               // file name, served from the client's inputs folder
+  startFrame: number;            // trim start, in frames
+  durationFrames: number;
+  overlays: (HeadOverlay & { from: number; frames: number })[];
 };

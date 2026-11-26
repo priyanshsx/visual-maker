@@ -117,6 +117,44 @@ Takes a few minutes per size. To fine-tune timing and look in the browser, add `
 cd remotion && npx remotion studio src/index.ts --props=../outputs/<client>/<date>/<name>_<size>.props.json
 ```
 
+## From an idea (buckets + LLM)
+
+Each client has content buckets in `brands/<client>/buckets.yaml`: the kind of post, which
+templates make it (video and/or image), settings that are always applied, which LLM tier writes
+it, and the brief and rules it follows. Status `draft` = basic template that will change;
+`samples_needed` = for team review, not final.
+
+| Client | Bucket | Makes | Status |
+|---|---|---|---|
+| quartermaster | feature_launch | video: device_demo (cinematic, plain text) · image: title | ready |
+| quartermaster | explainer | video: explainer (vertical) · image: carousel | draft |
+| quartermaster | talking_head | video: talking_head | draft |
+| vizcorn | linkedin_image | image: event_recap, stat, carousel, quote | ready |
+| vizcorn | generic_video | video: explainer | samples_needed |
+
+Setup once: copy `.env.example` to `.env` and fill in your Unoblox key (the same as the content
+suggester). `LLM_MODEL_FAST` (Haiku) writes short posts, `LLM_MODEL_SMART` (Sonnet) writes
+explainers and videos. Costs are logged to `logs/llm_calls.csv`.
+
+```bash
+python -m visuals buckets --client quartermaster
+python -m visuals idea --client quartermaster --bucket feature_launch \
+    --files heatmap.png --idea "Announce the new sector heatmap: every sector's move today"
+python -m visuals idea --client quartermaster --bucket explainer \
+    --files corr-chart.png corr.csv --idea "Explain why Bitcoin and stocks barely move together"
+python -m visuals idea --client quartermaster --bucket talking_head \
+    --files talk.mp4 talk.srt corr-chart.png --idea "Add the correlation chart and stat"
+python -m visuals idea --client vizcorn --bucket linkedin_image --idea-file post.md
+```
+
+Files go in `inputs/<client>/`. The command writes a YAML draft there (never overwriting) with
+a header saying where it came from. Review it, then render it like any other file (or add
+`--render`). Options: `--format image`, `--template stat`, `--model smart`.
+
+The LLM may only use numbers that appear in your idea or attached files (CSV, notes,
+transcript); anything else is sent back to be fixed, and if it is still there it is marked
+`# CHECK:` at the top of the file. Charts and screenshots must be attached files.
+
 ## Event recap image (event_recap, made with Remotion)
 
 One rich portrait image (1080x1350, saved at 2x for sharpness) about an event, like a
@@ -140,6 +178,8 @@ companies of up to 3 people; bigger teams need a Remotion company licence.
 | quote_motion | as quote (animated, see below) |
 | device_demo | title (70), image, 1–6 steps, kicker (40), cta (60) (3D, see below) |
 | event_recap | badge (50), title (60), title_accent (60), intro (230), stats (≤3), 2–4 cards, big_picture, closing (130) |
+| explainer | scenes: hook (90) / chart (image, caption 110, source) / stat (value, label, source) / points (2–4) / text (140) / cta — basic, vertical |
+| talking_head | footage, start/end, overlays at seconds: title / stat / chart / points — basic |
 
 Text shrinks automatically to fit. If it still doesn't fit, the image is not made and you get
 a message saying which text to shorten.
@@ -157,7 +197,8 @@ next to it. No code changes.
 brands/      one folder per client: brand.yaml + logo
 fonts/       bundled font files (Inter, SIL Open Font License)
 templates/   HTML/CSS designs shared by all clients
-visuals/     the code (cli, brand, specs, render, video, remotion_bridge)
+visuals/     the code (cli, brand, specs, render, video, remotion_bridge, buckets, ideas, llm)
+prompts/     the LLM prompt for the idea command (plain text, edit freely)
 remotion/    the 3D video project (React + Three.js, rendered by Remotion)
 inputs/      your words, one YAML file per batch
 outputs/     finished images (not in git)

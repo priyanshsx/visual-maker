@@ -14,8 +14,13 @@ const easeOut = Easing.bezier(0.16, 1, 0.3, 1);
 
 // Fade + rise in at `start`, fade + rise out at `end` (frames).
 // Cinematic look: text comes into focus (blur -> sharp) instead of a plain fade.
-function useInOut(start: number, end: number | null, s: number, cine = false) {
+function useInOut(start: number, end: number | null, s: number, cine = false, plain = false) {
   const frame = useCurrentFrame();
+  if (plain) {                       // plain text: a short fade, no movement or blur
+    const inP = interpolate(frame, [start, start + 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const outP = end === null ? 0 : interpolate(frame, [end - 6, end], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    return { opacity: inP * (1 - outP) };
+  }
   const inT = interpolate(frame, [start, start + (cine ? 20 : 14)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: easeOut });
   const outT = end === null ? 0 : interpolate(frame, [end - 8, end], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   if (cine) {
@@ -92,8 +97,9 @@ const Intro: React.FC<{ p: DeviceDemoProps; end: number }> = ({ p, end }) => {
   const L = layout(p.width, p.height);
   const s = L.s;
   const cine = p.look === "cinematic";
-  const kick = useInOut(4, end + 4, s, cine);
-  const title = useInOut(10, end + 6, s, cine);
+  const plain = p.textStyle === "plain";
+  const kick = useInOut(4, end + 4, s, cine, plain);
+  const title = useInOut(10, end + 6, s, cine, plain);
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", padding: `0 ${L.pad * 1.3}px`, textAlign: "center" }}>
       {p.kicker && (
@@ -116,8 +122,9 @@ const Caption: React.FC<{ p: DeviceDemoProps; i: number; start: number; end: num
   const L = layout(p.width, p.height);
   const s = L.s;
   const cine = p.look === "cinematic";
-  const num = useInOut(start, end, s, cine);
-  const text = useInOut(start + 4, end, s, cine);
+  const plain = p.textStyle === "plain";
+  const num = useInOut(start, end, s, cine, plain);
+  const text = useInOut(start + 4, end, s, cine, plain);
   return (
     <div style={{ position: "absolute", left: L.text.x, top: L.text.y, width: L.text.w, height: L.text.h,
       display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -136,8 +143,9 @@ const Outro: React.FC<{ p: DeviceDemoProps; start: number }> = ({ p, start }) =>
   const L = layout(p.width, p.height);
   const s = L.s;
   const cine = p.look === "cinematic";
-  const title = useInOut(start, null, s, cine);
-  const cta = useInOut(start + 8, null, s, cine);
+  const plain = p.textStyle === "plain";
+  const title = useInOut(start, null, s, cine, plain);
+  const cta = useInOut(start + 8, null, s, cine, plain);
   return (
     <div style={{ position: "absolute", left: L.text.x, top: L.text.y, width: L.text.w, height: L.text.h,
       display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start" }}>

@@ -1,0 +1,73 @@
+# Content buckets for Quartermaster. Each bucket says what kind of post it is, which template
+# makes it (per format: video and/or image), and how the LLM should write it.
+#   status:   ready | draft (basic template, will be modified) | samples_needed (team must approve)
+#   model:    fast (cheap, short structured posts) | smart (longer storytelling)
+#   formats:  video / image -> templates (first = default; pick another with --template)
+#             defaults are always applied on top of what the LLM writes (sizes, look, ...)
+# Make a draft from an idea:
+#   python -m visuals idea --client quartermaster --bucket feature_launch --files heatmap.png "..."
+
+feature_launch:
+  label: Product / feature launch or upgrade
+  status: ready
+  model: fast
+  formats:
+    video:
+      templates: [device_demo]
+      defaults: {look: cinematic, text_style: plain, sizes: [portrait, landscape]}
+    image:
+      templates: [title]
+      defaults: {sizes: [landscape, portrait]}
+  brief: |
+    Announce a new Quartermaster feature or upgrade. Show the real screenshot, then guide the
+    eye to the 2 to 4 parts the idea mentions (one step each: caption + focus point + zoom),
+    and close with where to find it. Kicker like "New in Quartermaster". Title says what it is
+    in a few words. Captions are short, concrete and describe what the screen shows.
+  rules:
+    - Plain, simple English. No hype words (revolutionary, game-changing, powerful, unlock).
+    - Describe what the feature shows; never predict markets or suggest trades.
+    - Only use numbers that appear in the idea or the attached files.
+    - Focus points must point at the part of the screenshot the caption talks about.
+    - Close with app.quartermasterlabs.com as the call to action.
+
+explainer:
+  label: Explainer post / thread
+  status: draft
+  notes: Basic template. The design and scene types will be modified later.
+  model: smart
+  formats:
+    video:
+      templates: [explainer]
+      defaults: {sizes: [story]}
+    image:
+      templates: [carousel]
+      defaults: {sizes: [portrait]}
+  brief: |
+    Teach one quant or market concept with one real example from Quartermaster data, for retail
+    traders and investors. 20 to 40 seconds: a hook question, then charts and stats from the
+    attached files, a short "how to read it" list if useful, and a call to action. One idea per
+    scene; captions read in under 3 seconds. As an image, write it as carousel slides.
+  rules:
+    - Every number must come from the idea, an attached CSV or notes file. Never compute new ones.
+    - Charts only from attached chart images; every chart and stat needs a source line.
+    - Educational tone; no predictions, no buy/sell language.
+    - End with app.quartermasterlabs.com.
+
+talking_head:
+  label: Talking head with charts
+  status: draft
+  notes: Basic template, follows the explainer style. Will be modified later.
+  model: smart
+  formats:
+    video:
+      templates: [talking_head]
+      defaults: {sizes: [story]}
+  brief: |
+    Add cards on top of a recorded talking-head video. You get the transcript with timestamps.
+    Start with a title card (name + topic). Then place a stat, chart or points card where the
+    speaker mentions that number, chart or list, starting at that moment. Leave most of the video
+    clear: cards on screen no more than about 40% of the time, never overlapping.
+  rules:
+    - The "at" values are timestamps from the transcript (seconds in the original recording).
+    - footage is the attached video file; charts only from attached chart images.
+    - Numbers only from the transcript or attached files, with a source line.

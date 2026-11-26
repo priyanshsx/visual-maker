@@ -12,6 +12,9 @@ dependencies = [
     "pydantic>=2",
     "playwright",
     "pillow",
+    "python-dotenv",
+    "openai",
+    "anthropic",
     "pytest",
 ]
 

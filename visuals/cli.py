@@ -17,6 +17,9 @@
 #   Motion:
 #     python -m visuals --client vizcorn --template stat_motion --stat "75%" --headline "..."
 #     python -m visuals --client vizcorn --template quote_motion --quote "Fix the *data* first."
+#   From an idea (LLM writes the YAML for a client's bucket; see visuals/ideas.py):
+#     python -m visuals buckets --client quartermaster
+#     python -m visuals idea --client quartermaster --bucket feature_launch --files shot.png --idea "..."
 #   3D product demo (device_demo, made with Remotion; YAML file only, see inputs/quartermaster/):
 #     python -m visuals --client quartermaster --file correlations-demo.yaml
 #     add --html to keep a props file for previewing in Remotion Studio
@@ -82,7 +85,8 @@ def friendly_errors(error: ValidationError) -> str:
             prefix = f"{prefix} ({loc[0]})" if prefix else loc[0]
             loc = loc[1:]
         names = {"slides": "slide", "steps": "step", "focus": "focus value", "cards": "card",
-                 "stats": "stat", "points": "point"}
+                 "stats": "stat", "points": "point", "scenes": "scene", "overlays": "overlay",
+                 "items": "item"}
         field = " ".join(f"{names.get(loc[j - 1], 'item')} {int(x) + 1}" if x.isdigit() and j
                          else f'"{x}"' for j, x in enumerate(loc))
         kind, ctx = err["type"], err.get("ctx", {})
@@ -130,6 +134,19 @@ def resolve_music(client: str, music: str | None) -> Path | None:
     return INPUTS_DIR / client / music          # missing: make_slideshow gives a clear error
 #--------------------------------------------------------------#
 
+# Replace every file name in a spec (screenshots, charts, footage) with its full path, so a
+# missing file is reported before anything renders
+def resolve_files(client: str, spec):
+    def fix(item, field):
+        value = getattr(item, field, None)
+        return item.model_copy(update={field: str(resolve_image(client, value))}) if value else item
+    spec = fix(fix(spec, "image"), "footage")
+    for group in ("steps", "scenes", "overlays"):          # device_demo, explainer, talking_head
+        if hasattr(spec, group):
+            spec = spec.model_copy(update={group: [fix(x, "image") for x in getattr(spec, group)]})
+    return spec
+#--------------------------------------------------------------#
+
 # Turn the single-image arguments into one spec
 def spec_from_args(args: argparse.Namespace):
     data = {"template": args.template}
@@ -137,7 +154,7 @@ def spec_from_args(args: argparse.Namespace):
         data["name"] = args.name
     if args.size:
         data["sizes"] = args.size
-    if args.template in ("device_demo", "event_recap"):
+    if args.template in ("device_demo", "event_recap", "explainer", "talking_head"):
         raise ValueError(f"{args.template} has several parts: write it in a YAML file and use --file")
     motion = args.template.endswith("_motion")
     if args.video and not motion:
@@ -165,6 +182,10 @@ def spec_from_args(args: argparse.Namespace):
 
 # Main: load brand + words, render everything, report what was made
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] in ("idea", "buckets"):          # idea -> spec (LLM), list buckets
+        from visuals.ideas import main as ideas_main
+        return ideas_main(argv)
     args = parse_args(argv)
     try:
         brand = load_brand(args.client)
@@ -186,12 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             specs = [type(s).model_validate(s.model_dump()) for s in specs]   # re-check limits
         else:
             specs = [spec_from_args(args)]
-        specs = [s.model_copy(update={"image": str(resolve_image(args.client, s.image))})
-                 if getattr(s, "image", None) else s for s in specs]     # find image files up front
-        specs = [s.model_copy(update={"steps": [
-                     st.model_copy(update={"image": str(resolve_image(args.client, st.image))})
-                     if st.image else st for st in s.steps]})
-                 if hasattr(s, "steps") else s for s in specs]           # and per-step screenshots
+        specs = [resolve_files(args.client, s) for s in specs]     # find every file up front
     except ValidationError as e:
         print(f"Your words don't fit the template rules:\n{friendly_errors(e)}", file=sys.stderr)
         return 2
@@ -208,8 +224,8 @@ def main(argv: list[str] | None = None) -> int:
             base = spec.name or f"{i:02d}-{spec.template}"
             for size in spec.sizes:
                 try:
-                    if spec.template in ("device_demo", "event_recap"):   # made with Remotion
-                        from visuals.remotion_bridge import render_remotion
+                    from visuals.remotion_bridge import COMPOSITIONS, render_remotion
+                    if spec.template in COMPOSITIONS:      # made with Remotion
                         made += render_remotion(spec, brand, size, out_dir, base,
                                                 resolve_music(args.client, getattr(spec, "music", None)),
                                                 keep_props=args.html)

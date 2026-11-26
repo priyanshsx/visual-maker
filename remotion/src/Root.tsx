@@ -5,14 +5,17 @@
 import { Composition, type CalculateMetadataFunction } from "remotion";
 import { DeviceDemo } from "./DeviceDemo";
 import { EventRecap } from "./EventRecap";
+import { Explainer } from "./Explainer";
+import { TalkingHead } from "./TalkingHead";
 import { FPS, totalFrames } from "./timeline";
-import type { DeviceDemoProps, EventRecapProps } from "./types";
+import type { DeviceDemoProps, EventRecapProps, ExplainerProps, TalkingHeadProps } from "./types";
 
 const GREY_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkqGv4DwAEhgJAgO6xAAAAAElFTkSuQmCC";
 
 const sample: DeviceDemoProps = {
   look: "cinematic",
+  textStyle: "animated",
   width: 1080,
   height: 1350,
   brand: {
@@ -66,6 +69,27 @@ const recapMetadata: CalculateMetadataFunction<EventRecapProps> = ({ props }) =>
   fps: FPS,
 });
 
+const explainerSample: ExplainerProps = {
+  width: 1080, height: 1920, brand: sample.brand, look: "clean",
+  scenes: [
+    { kind: "hook", text: "One idea, *explained*.", frames: 90 },
+    { kind: "points", title: "Three things", items: ["First", "Second", "Third"], frames: 150 },
+    { kind: "cta", text: "Try it", url: "example.com", frames: 90 },
+  ],
+};
+const explainerMetadata: CalculateMetadataFunction<ExplainerProps> = ({ props }) => ({
+  durationInFrames: props.scenes.reduce((n, s) => n + s.frames, 0),
+  width: props.width, height: props.height, fps: FPS,
+});
+
+const headSample: TalkingHeadProps = {
+  width: 1080, height: 1920, brand: sample.brand, footage: "talk.mp4", startFrame: 0, durationFrames: 150,
+  overlays: [{ kind: "title", text: "Your name", subtext: "Topic", from: 15, frames: 90 }],
+};
+const headMetadata: CalculateMetadataFunction<TalkingHeadProps> = ({ props }) => ({
+  durationInFrames: props.durationFrames, width: props.width, height: props.height, fps: FPS,
+});
+
 export const RemotionRoot: React.FC = () => (
   <>
   <Composition
@@ -88,5 +112,9 @@ export const RemotionRoot: React.FC = () => (
     width={recapSample.width}
     height={recapSample.height}
   />
+  <Composition id="Explainer" component={Explainer} defaultProps={explainerSample} calculateMetadata={explainerMetadata}
+    durationInFrames={330} fps={FPS} width={1080} height={1920} />
+  <Composition id="TalkingHead" component={TalkingHead} defaultProps={headSample} calculateMetadata={headMetadata}
+    durationInFrames={150} fps={FPS} width={1080} height={1920} />
   </>
 );
