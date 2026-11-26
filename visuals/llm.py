@@ -3,8 +3,9 @@
 
 # File: visuals/llm.py
 # Purpose: the only place that talks to the LLM (same pattern as the content suggester).
-#   call_llm(task, prompt, schema, tier, check)
-#     1. asks the model for JSON matching the Pydantic schema
+#   call_llm(task, prompt, schema, tier, check, images)
+#     1. asks the model for JSON matching the Pydantic schema; images (screenshots, charts) are
+#        attached so the model can see them (if the gateway refuses images: text only + warning)
 #     2. validates it, then runs `check` (extra rules, e.g. "only numbers from the sources")
 #     3. on a problem sends it back and retries (max 2 retries)
 #     4. logs tokens and cost to logs/llm_calls.csv
@@ -20,13 +21,17 @@
 #--------------------------------------------------------------#
 
 # Imports Libraries
+import base64
 import csv
+import io
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Callable, TypeVar
 
 from dotenv import load_dotenv
+from PIL import Image
 from pydantic import BaseModel, ValidationError
 
 from visuals.paths import ROOT
@@ -36,6 +41,7 @@ from visuals.paths import ROOT
 load_dotenv(ROOT / ".env")
 T = TypeVar("T", bound=BaseModel)
 MAX_RETRIES = 2
+IMAGE_MAX_SIDE = 1568            # larger images are scaled down: same detail for the model, fewer tokens
 LOG_FILE = ROOT / "logs" / "llm_calls.csv"
 _client = None
 
@@ -83,9 +89,37 @@ def _get_client():
     return _client
 
 
+# Image file -> (media type, base64 PNG), scaled down if very large
+def encode_image(path: Path) -> tuple[str, str]:
+    with Image.open(path) as img:
+        img = img.convert("RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB")
+        img.thumbnail((IMAGE_MAX_SIDE, IMAGE_MAX_SIDE))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+    return "image/png", base64.b64encode(buf.getvalue()).decode()
+
+
+# Our messages keep images in an "images" list; each API wants them in its own shape
+def _to_api(kind: str, messages: list[dict]) -> list[dict]:
+    out = []
+    for m in messages:
+        images = m.get("images") or []
+        if not images:
+            out.append({"role": m["role"], "content": m["content"]})
+        elif kind == "gateway":           # OpenAI-style
+            out.append({"role": m["role"], "content": [{"type": "text", "text": m["content"]}] + [
+                {"type": "image_url", "image_url": {"url": f"data:{mt};base64,{data}"}} for mt, data in images]})
+        else:                             # Anthropic: images first, then the text
+            out.append({"role": m["role"], "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": mt, "data": data}}
+                for mt, data in images] + [{"type": "text", "text": m["content"]}]})
+    return out
+
+
 # One API call. Returns (text, input_tokens, output_tokens). Tests replace this with a fake.
 def _send(model: str, system: str, messages: list[dict], max_tokens: int) -> tuple[str, int, int]:
     kind, client = _get_client()
+    messages = _to_api(kind, messages)
     if kind == "gateway":
         resp = client.chat.completions.create(
             model=model, max_tokens=max_tokens,
@@ -119,15 +153,26 @@ def _log_call(task: str, model: str, tokens_in: int, tokens_out: int, cost: floa
 # Main entry point
 def call_llm(task: str, prompt: str, schema: type[T], tier: str = "fast",
              check: Callable[[T], list[str]] | None = None,
-             max_tokens: int = 4096) -> tuple[T, list[str]]:
+             max_tokens: int = 4096, images: list[Path] | None = None) -> tuple[T, list[str]]:
     model, price_in, price_out = settings(tier)
     system = SYSTEM.format(schema=json.dumps(schema.model_json_schema()))
-    messages = [{"role": "user", "content": prompt}]
+    messages = [{"role": "user", "content": prompt, "images": [encode_image(p) for p in images or []]}]
     tokens_in = tokens_out = 0
-    result, problems, last_error = None, [], ""
+    result, problems, last_error, notes = None, [], "", []
 
     for attempt in range(MAX_RETRIES + 1):
-        text, t_in, t_out = _send(model, system, messages, max_tokens)
+        try:
+            text, t_in, t_out = _send(model, system, messages, max_tokens)
+        except LLMError:
+            raise
+        except Exception as e:                # e.g. the gateway or model doesn't accept images
+            if attempt == 0 and messages[0]["images"]:
+                messages[0]["images"] = []
+                notes.append(f"the model could not take the screenshots, so it worked from file names only "
+                             f"({type(e).__name__}): check focus points by hand")
+                text, t_in, t_out = _send(model, system, messages, max_tokens)
+            else:
+                raise
         tokens_in += t_in
         tokens_out += t_out
         try:
@@ -148,6 +193,6 @@ def call_llm(task: str, prompt: str, schema: type[T], tier: str = "fast",
     _log_call(task, model, tokens_in, tokens_out, cost, result is not None)
     if result is None:
         raise LLMError(f"{task}: no valid reply after {MAX_RETRIES + 1} attempts. Last error: {last_error[:500]}")
-    return result, problems
+    return result, notes + problems
 #--------------------------------------------------------------#
 #----------------------End-of-code-----------------------------#

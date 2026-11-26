@@ -178,3 +178,51 @@ def test_missing_model_setting(monkeypatch):
         llm.settings("fast")
 #--------------------------------------------------------------#
 #----------------------End-of-code-----------------------------#
+
+
+# Screenshots are sent to the model so it can see them
+def test_screenshots_are_sent_to_the_model(inbox, monkeypatch):
+    seen = []
+
+    def send(model, system, messages, max_tokens):
+        seen.append(messages[0])
+        return json.dumps(DEMO), 100, 50
+    monkeypatch.setattr(llm, "_send", send)
+    make_spec("quartermaster", "feature_launch", "Heatmap of 11 sectors", ["heatmap.png"])
+    first = seen[0]
+    assert len(first["images"]) == 1 and first["images"][0][0] == "image/png"
+    assert "heatmap.png (attached image 1" in first["content"]
+
+
+def test_both_api_shapes_carry_the_image():
+    msgs = [{"role": "user", "content": "hi", "images": [("image/png", "AAAA")]}]
+    gw = llm._to_api("gateway", msgs)[0]["content"]
+    assert gw[0] == {"type": "text", "text": "hi"} and gw[1]["image_url"]["url"] == "data:image/png;base64,AAAA"
+    an = llm._to_api("anthropic", msgs)[0]["content"]
+    assert an[0]["source"]["data"] == "AAAA" and an[-1] == {"type": "text", "text": "hi"}
+    assert llm._to_api("gateway", [{"role": "user", "content": "x"}]) == [{"role": "user", "content": "x"}]
+
+
+def test_falls_back_to_text_if_images_are_refused(inbox, monkeypatch):
+    calls = []
+
+    def send(model, system, messages, max_tokens):
+        calls.append(bool(messages[0]["images"]))
+        if messages[0]["images"]:
+            raise RuntimeError("image input not supported")
+        return json.dumps(DEMO), 100, 50
+    monkeypatch.setattr(llm, "_send", send)
+    path, warnings = make_spec("quartermaster", "feature_launch", "Heatmap of 11 sectors", ["heatmap.png"])
+    assert calls == [True, False]
+    assert any("could not take the screenshots" in w for w in warnings)
+    assert "# CHECK: the model could not take the screenshots" in path.read_text()
+
+
+def test_big_images_are_scaled_down(tmp_path):
+    from PIL import Image
+    big = tmp_path / "big.png"
+    Image.new("RGB", (4000, 1000), "white").save(big)
+    import base64, io
+    mt, data = llm.encode_image(big)
+    with Image.open(io.BytesIO(base64.b64decode(data))) as img:
+        assert img.size == (1568, 392)

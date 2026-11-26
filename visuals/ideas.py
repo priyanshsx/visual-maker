@@ -6,8 +6,8 @@
 #          client's bucket (brands/<client>/buckets.yaml).
 #
 #   1. picks the bucket, format (video / image) and template
-#   2. reads the attached files: images (size), videos (length), CSVs (header + first rows),
-#      notes and transcripts (text)
+#   2. reads the attached files: images (sent to the model so it can see them), videos
+#      (length), CSVs (header + first rows), notes and transcripts (text)
 #   3. asks the LLM (fast or smart tier, per bucket) for a spec of that template
 #   4. checks it: valid for the template, files exist, every number appears in the sources
 #      (problems are sent back to the LLM to fix; anything left is flagged CHECK in the file)
@@ -58,8 +58,8 @@ NEEDS = {"device_demo": "image", "talking_head": "video"}
 #--------------------------------------------------------------#
 
 # Read the attached files: what the LLM is shown, and the full text used to check numbers
-def describe_files(client: str, names: list[str]) -> tuple[str, str, dict[str, str]]:
-    shown, sources, kinds = [], [], {}
+def describe_files(client: str, names: list[str]) -> tuple[str, str, dict[str, str], list[Path]]:
+    shown, sources, kinds, images = [], [], {}, []
     for name in names:
         path = Path(name) if Path(name).exists() else INPUTS_DIR / client / name
         if not path.exists():
@@ -68,11 +68,13 @@ def describe_files(client: str, names: list[str]) -> tuple[str, str, dict[str, s
         sources.append(path.name)
         if ext in IMAGE_TYPES:
             kinds[path.name] = "image"
-            size = ""
-            if ext != ".svg":
+            if ext == ".svg":                      # vector files can't be sent; name only
+                shown.append(f"- {path.name} (image, not shown to you)")
+            else:
                 with Image.open(path) as img:
-                    size = f", {img.size[0]}x{img.size[1]} px"
-            shown.append(f"- {path.name} (image{size})")
+                    size = f"{img.size[0]}x{img.size[1]} px"
+                images.append(path)
+                shown.append(f"- {path.name} (attached image {len(images)}, {size})")
         elif ext in VIDEO_TYPES:
             kinds[path.name] = "video"
             from visuals.remotion_bridge import RemotionError, media_seconds
@@ -97,7 +99,7 @@ def describe_files(client: str, names: list[str]) -> tuple[str, str, dict[str, s
             sources.append(text)
         else:
             raise ValueError(f"Can't use {path.name}: attach images, videos, CSVs or text files")
-    return "\n".join(shown) or "(none)", "\n".join(sources), kinds
+    return "\n".join(shown) or "(none)", "\n".join(sources), kinds, images
 #--------------------------------------------------------------#
 
 # Numbers: "5,000" and "5000" are the same; "57%" counts as 57; "−1" as 1
@@ -210,7 +212,7 @@ def make_spec(client: str, bucket_name: str, idea: str, files: list[str], fmt: s
     from visuals.llm import call_llm
     bucket = get_bucket(client, bucket_name)
     fmt, template = choose(bucket, fmt, template)
-    shown, sources, kinds = describe_files(client, files)
+    shown, sources, kinds, images = describe_files(client, files)
     need = NEEDS.get(template)
     if need and need not in kinds.values():
         raise ValueError(f"{template} needs an attached {need} file (use --files)")
@@ -218,7 +220,8 @@ def make_spec(client: str, bucket_name: str, idea: str, files: list[str], fmt: s
     prompt = build_prompt(brand.display_name, bucket, fmt, template, idea, shown)
     spec_class = SPEC_CLASSES[template]
     draft, warnings = call_llm(f"idea:{client}:{bucket_name}:{template}", prompt, spec_class,
-                               tier or bucket.model, make_check(idea + "\n" + sources, kinds))
+                               tier or bucket.model, make_check(idea + "\n" + sources, kinds),
+                               images=images)
 
     data = draft.model_dump(exclude_none=True)
     data.update(bucket.formats[fmt].defaults)               # bucket settings always win

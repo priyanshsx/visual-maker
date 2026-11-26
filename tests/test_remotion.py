@@ -234,3 +234,11 @@ def test_talking_head_props_use_original_timestamps(monkeypatch):
                           "overlays": [{"kind": "title", "text": "Name", "at": 18, "seconds": 4}]})
     with pytest.raises(RemotionError, match="outside the video"):
         build_props(bad, load_brand("quartermaster"), "story")
+
+
+def test_errors_show_the_message_not_the_stack_trace():
+    from visuals.remotion_bridge import error_summary, render_flags
+    out = "Rendering frames 10/300\nError: Browser crashed\n    at a (x.js:1)\n    at b (y.js:2)"
+    assert error_summary(out).endswith("Error: Browser crashed")
+    assert "--concurrency=2" in render_flags("device_demo")
+    assert not any(f.startswith("--concurrency") for f in render_flags("explainer"))

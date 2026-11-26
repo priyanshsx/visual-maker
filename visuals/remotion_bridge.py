@@ -20,6 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from dotenv import load_dotenv
 from PIL import Image
 
 from visuals.brand import Brand, font_face_css
@@ -31,6 +32,7 @@ from visuals.video import AUDIO_ARGS, VideoError, audio_filter, even, ffmpeg_pat
 #--------------------------------------------------------------#
 
 # Global variables
+load_dotenv(ROOT / ".env")        # VISUALS_CHROME, VISUALS_GL, VISUALS_CONCURRENCY can live in .env
 REMOTION_DIR = ROOT / "remotion"
 ENTRY = "src/index.ts"
 FPS = 30
@@ -191,20 +193,38 @@ def npx_path() -> str:
     return path
 
 
-# Extra flags: WebGL backend (Mac GPU by default, software on Linux) and an optional browser
-def render_flags() -> list[str]:
+# Templates with live 3D: each parallel browser tab holds its own 3D scene, so too many at
+# once can run the graphics memory out and crash the browser. Others use Remotion's default.
+HEAVY_3D = {"device_demo", "event_recap"}
+
+
+# Extra flags: WebGL backend (Mac GPU by default, software on Linux), how many frames render
+# in parallel (VISUALS_CONCURRENCY, default 2 for 3D templates) and an optional browser
+def render_flags(template: str | None = None) -> list[str]:
     gl = os.environ.get("VISUALS_GL") or ("angle" if sys.platform == "darwin" else "swangle")
     flags = [f"--gl={gl}", "--log=error"]
+    concurrency = os.environ.get("VISUALS_CONCURRENCY") or ("2" if template in HEAVY_3D else None)
+    if concurrency:
+        flags.append(f"--concurrency={concurrency}")
     browser = os.environ.get("VISUALS_CHROME")             # only if Remotion can't download its own
     if browser:
         flags.append(f"--browser-executable={browser}")
     return flags
 
 
+# Show the useful part of a failure: the first lines (the actual error), not just the stack trace
+def error_summary(output: str) -> str:
+    lines = [ln for ln in output.strip().splitlines() if ln.strip()]
+    trace = [i for i, ln in enumerate(lines) if ln.lstrip().startswith("at ")]
+    head = lines[:trace[0]] if trace else lines
+    text = "\n".join(head[-25:]) or "\n".join(lines[:25])
+    return text[-2500:]
+
+
 def run(cmd: list[str], what: str) -> None:
     result = subprocess.run(cmd, cwd=REMOTION_DIR, capture_output=True, text=True)
     if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()[-800:]
+        detail = error_summary("\n".join(x for x in (result.stdout, result.stderr) if x))
         raise RemotionError(f"{what} failed:\n{detail}")
 #--------------------------------------------------------------#
 
@@ -241,7 +261,7 @@ def render_image(npx: str, composition: str, props: dict, spec, out_dir: Path, b
     with tempfile.TemporaryDirectory() as tmp:
         props_file = Path(tmp) / "props.json"
         props_file.write_text(json.dumps(props), encoding="utf-8")
-        flags = [f"--props={props_file}", *render_flags()]
+        flags = [f"--props={props_file}", *render_flags(spec.template)]
         run([npx, "remotion", "still", ENTRY, composition, str(image), f"--frame={last_frame}",
              "--scale=2", *flags], "Remotion image")
         made = [image]
@@ -273,7 +293,7 @@ def render_remotion(spec, brand: Brand, size: str, out_dir: Path, base_name: str
         props_file = Path(tmp) / "props.json"
         props_file.write_text(json.dumps(props), encoding="utf-8")
         silent = Path(tmp) / "silent.mp4" if music else video
-        flags = [f"--props={props_file}", *render_flags()]
+        flags = [f"--props={props_file}", *render_flags(spec.template)]
         if spec.template == "talking_head":               # footage is served from its own folder
             flags.append(f"--public-dir={Path(spec.footage).parent}")
         run([npx, "remotion", "render", ENTRY, composition, str(silent), *flags], "Remotion render")

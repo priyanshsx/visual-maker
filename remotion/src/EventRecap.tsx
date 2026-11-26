@@ -20,11 +20,12 @@ function useEnter(start: number) {
   return { opacity: k, transform: `translateY(${(1 - k) * 26}px)` };
 }
 
-function Wordmark({ p, color, size }: { p: EventRecapProps; color: string; size: number }) {
+// Brand mark: the logo file if there is one (logoHeight in px), else the name as text
+function Wordmark({ p, color, size, logoHeight }: { p: EventRecapProps; color: string; size: number; logoHeight?: number }) {
   const { brand } = p;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: size * 0.35 }}>
-      {brand.logo && <img src={brand.logo} style={{ height: size * 1.25 }} />}
+      {brand.logo && <img src={brand.logo} style={{ height: logoHeight ?? size * 1.25 }} />}
       {(!brand.logo || brand.logoWithName) && (
         <span style={{ fontWeight: 800, fontSize: size, letterSpacing: "-0.02em", color }}>{brand.name}</span>
       )}
@@ -37,7 +38,7 @@ const Header: React.FC<{ p: EventRecapProps }> = ({ p }) => {
   const a = useEnter(2), b = useEnter(8), d = useEnter(14), e = useEnter(20), f = useEnter(26);
   return (
     <div style={{ width: 545, position: "relative" }}>
-      <div style={a}><Wordmark p={p} color={c.primary} size={32} /></div>
+      <div style={a}><Wordmark p={p} color={c.primary} size={32} logoHeight={54} /></div>
       {p.badge && (
         <div style={{ ...b, marginTop: 20, display: "inline-flex", alignItems: "center", gap: 10, padding: "8px 17px",
           borderRadius: 999, background: `${c.primary}14`, border: `1px solid ${c.primary}33`, color: c.primary,
@@ -148,7 +149,7 @@ const Footer: React.FC<{ p: EventRecapProps }> = ({ p }) => {
     <div style={{ ...enter, flex: 1, minHeight: 80, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <div style={{ width: 560, fontSize: 17, lineHeight: 1.4, color: c.text, fontWeight: 500 }}>{p.closing}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        <Wordmark p={p} color={c.primary} size={28} />
+        <Wordmark p={p} color={c.primary} size={28} logoHeight={44} />
         <div style={{ height: 40, width: 1, background: `${c.muted}55` }} />
         <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.06em", color: c.muted, lineHeight: 1.35, width: 170 }}>
           {p.brand.handle ?? ""}

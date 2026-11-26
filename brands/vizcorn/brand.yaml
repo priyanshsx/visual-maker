@@ -9,7 +9,7 @@ footer: From Complex Systems to Clear Business Outcomes
 
 # Put the logo file in this folder (SVG best, or a large PNG with a transparent background)
 # and set the file name here. Until the file exists, "VizCorn" is shown as a text wordmark.
-logo: logo.svg
+logo: logo.webp
 
 colors:
   primary: "#155EEF"      # VizCorn blue (from their website)

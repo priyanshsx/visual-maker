@@ -1,0 +1,34 @@
+# Draft from the idea command, 2026-11-26: review before rendering.
+# Client: quartermaster | bucket: feature_launch (Product / feature launch or upgrade) | video | template: device_demo
+# Idea: Announce the new Correlations page in Quartermaster. It shows each asset's rolling 52-week correlation with Bitcoin, with S&P 500, Apple and gold on one chart. Free at app.quartermasterlabs.com
+
+- name: correlations-page-launch
+  sizes:
+  - portrait
+  - landscape
+  template: device_demo
+  kicker: New in Quartermaster
+  title: New *Correlations* page
+  image: correlations-chart.png
+  steps:
+  - caption: Rolling 52-week correlation for each asset
+    focus:
+    - 0.5
+    - 0.5
+    zoom: 1.0
+    marker: false
+  - caption: Bitcoin is the reference for each line
+    focus:
+    - 0.14
+    - 0.05
+    zoom: 2.4
+    marker: false
+  - caption: S&P 500, Apple and gold on one chart
+    focus:
+    - 0.165
+    - 0.2
+    zoom: 2.4
+    marker: true
+  cta: Free at app.quartermasterlabs.com
+  look: cinematic
+  text_style: plain
