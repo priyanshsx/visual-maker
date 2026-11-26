@@ -1,0 +1,21 @@
+# LinkedIn carousel for the Lubricant Expo Europe 2026 recap post.
+# Every fact and number comes from the post text. Slide 6 is VizCorn's angle: check the wording with the team.
+# Run: python -m visuals --client vizcorn --file lubricant-expo-2026.yaml
+# LinkedIn carousels are uploaded as a PDF document: combine the PNGs in slide order.
+
+- template: carousel
+  name: lubricant-expo-2026
+  sizes: [portrait]
+  slides:
+    - title: Lubricant Expo Europe 2026
+      body: The VizCorn team was on the ground in Düsseldorf. Here's what we took away.
+    - title: The expo at a glance
+      body: "~5,000 attendees, 280+ exhibitors and ~90 speakers, all in one place for lubricants, fluids and regulation."
+    - title: Food-grade lubricants are moving fast
+      body: Prof. Johan Leckner (Axel Christiernsson) on anhydrous calcium greases and polypropylene thickeners.
+    - title: Regulation is shaping the market
+      body: "Fabrizia La Neve (NSF): Europe is the largest market, Asia-Pacific the fastest-growing. PFAS, MOSH/MOAH and \"free-from\" claims are on every agenda."
+    - title: Beyond food-grade
+      body: REACH, PFAS, CLP, circularity and thermal management fluids came up again and again, with a keynote from Dr. Douwina Bosscher (Oleon).
+    - title: Every one of these shifts lands in product data
+      body: New rules mean new attributes, certificates and declarations for each product. Getting that data right is where we help.

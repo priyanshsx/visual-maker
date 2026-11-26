@@ -1,0 +1,47 @@
+# LinkedIn image for the Lubricant Expo Europe 2026 recap post (template: event_recap).
+# Every fact comes from the post text. Made with Remotion: 3D bearing + lubricant drop hero.
+# Run: python -m visuals --client vizcorn --file lubricant-expo-recap.yaml
+# Add "video: true" for a 5-second animated version as well.
+
+- template: event_recap
+  name: lubricant-expo-recap
+  badge: "Lubricant Expo Europe 2026 · Düsseldorf"
+  title: "On the ground in Düsseldorf."
+  title_accent: "Where lubricants are heading."
+  intro: "A record turnout, and a market actively balancing electrification, regulatory pressure and the need for reliable, compliant performance."
+  stats:
+    - {value: "~5,000", label: "attendees"}
+    - {value: "280+", label: "exhibitors"}
+    - {value: "~90", label: "speakers"}
+  cards_label: Key takeaways from the sessions
+  cards:
+    - icon: flask
+      name: Prof. Johan Leckner
+      org: Axel Christiernsson
+      topic: Anhydrous calcium greases
+      body: "Lower carbon footprint and strong wear protection vs. simple lithium in the data presented, and a route to combined H1 and EU Ecolabel formulations."
+    - icon: bearing
+      name: Prof. Johan Leckner
+      org: Axel Christiernsson
+      topic: Polypropylene thickeners
+      body: "Measurable friction and energy reductions, plus real-world evidence of longer bearing life and lower grease consumption."
+    - icon: globe
+      name: Fabrizia La Neve
+      org: NSF
+      topic: Market and regulation
+      body: "Food-grade demand keeps growing: Europe is the largest market, Asia-Pacific the fastest. PFAS, MOSH/MOAH and documented “free-from” claims raise the bar."
+    - icon: mic
+      name: Dr. Douwina Bosscher
+      org: Oleon
+      topic: "Keynote: sustainability under economic pressure"
+      body: "Sustainability remains central across the show, but the tone has shifted toward what is realistically deliverable."
+  big_picture:
+    label: The bigger picture
+    title: "Compliance evidence and cleaner formulations are becoming *commercial requirements*, not just technical preferences."
+    points_label: Themes across the show
+    points:
+      - {icon: shield, text: "Regulatory readiness: REACH, PFAS, CLP"}
+      - {icon: recycle, text: "Circularity and re-refined options"}
+      - {icon: thermometer, text: "Thermal management fluids"}
+      - {icon: scale, text: "Effective alternatives under tighter constraints"}
+  closing: "Looking forward to continuing the conversations that started in Düsseldorf."

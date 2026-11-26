@@ -13,6 +13,7 @@
 #--------------------------------------------------------------#
 
 # Imports Libraries
+import base64
 import re
 from pathlib import Path
 
@@ -59,12 +60,30 @@ class TextOverflowError(Exception):
     pass
 #--------------------------------------------------------------#
 
+# An image file as a data URI, so the page needs no file paths (None if no image)
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+               ".webp": "image/webp", ".svg": "image/svg+xml"}
+
+
+def image_data_uri(path: str | None) -> str | None:
+    if not path:
+        return None
+    file = Path(path)
+    mime = IMAGE_TYPES.get(file.suffix.lower())
+    if mime is None:
+        raise ValueError(f"Image {file.name}: use one of {sorted(IMAGE_TYPES)}")
+    if not file.exists():
+        raise FileNotFoundError(f"Image not found: {file}")
+    return f"data:{mime};base64," + base64.b64encode(file.read_bytes()).decode()
+#--------------------------------------------------------------#
+
 # Fill a template with the words and the brand; returns the full HTML page
 def build_html(spec, brand: Brand, size: str, for_video: bool = False) -> str:
     width, height = SIZES[size]
     scale = round(min(width, height) / 1080, 4)  # 1 for square/portrait, smaller for landscape
     return _env.get_template(f"{spec.template}.html").render(
         spec=spec, brand=brand, w=width, h=height, s=scale, size=size, for_video=for_video,
+        image=image_data_uri(getattr(spec, "image", None)),
         css=(TEMPLATES_DIR / "base.css").read_text(encoding="utf-8"),
         font_url=font_css_url(brand),
         font_css=font_face_css(brand),

@@ -1,0 +1,11 @@
+# Launch image for the first tweet announcing the Correlations page.
+# The chart is a real screenshot from the app (rolling 52-week correlation with Bitcoin).
+# Run: python -m visuals --client quartermaster --file correlations-launch.yaml
+
+- template: title
+  name: correlations-launch
+  sizes: [landscape, square]
+  kicker: New in Quartermaster
+  title: "Correlations. *Now live.*"
+  subtitle: "How closely does Bitcoin move with the S&P\u00A0500, Apple and gold? Correlation, beta and rolling charts, free."
+  image: correlations-chart.png

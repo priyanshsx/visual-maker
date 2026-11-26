@@ -8,10 +8,20 @@
 #   - template: quote          -> quote, author (optional), role (optional)
 #   - template: stat           -> stat, headline, body (optional), source (optional)
 #   - template: carousel       -> slides: list of {title, body (optional)}
+#   - template: title          -> title, kicker (optional), subtitle (optional),
+#                                 image (optional: a screenshot or picture in inputs/<client>/)
 #
 #   Motion templates (always an MP4 plus a poster PNG of the last frame):
 #   - template: stat_motion    -> same fields as stat; the number counts up
 #   - template: quote_motion   -> same fields as quote; lines appear one by one
+#   - template: device_demo    -> title, image (a screenshot), steps: list of {caption, focus,
+#                                 zoom, marker, image (optional)}, kicker, cta and
+#                                 look: clean | cinematic (optional).
+#                                 A 3D screen the camera glides over; made with Remotion
+#                                 (needs Node.js: cd remotion && npm install, once).
+#   - template: event_recap    -> one infographic image about an event: badge, title,
+#                                 title_accent, intro, stats, cards (speakers), big_picture,
+#                                 closing. Portrait only. Made with Remotion (3D hero).
 #   Motion entries may set duration (seconds; default: as long as the animation needs,
 #   plus a 2.5s hold) and music. In quotes, *words in asterisks* are shown in brand colour.
 #
@@ -25,7 +35,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Union
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 #--------------------------------------------------------------#
 
 # Global variables: output sizes in pixels (width, height)
@@ -100,8 +110,97 @@ class StatMotionSpec(MotionSpec):
     source: str | None = Field(default=None, max_length=120)
 
 
-TEMPLATES = ["quote", "stat", "carousel", "quote_motion", "stat_motion"]
-Spec = Annotated[Union[QuoteSpec, StatSpec, CarouselSpec, QuoteMotionSpec, StatMotionSpec],
+class TitleSpec(BaseSpec):
+    template: Literal["title"]
+    kicker: str | None = Field(default=None, max_length=40)       # small label, e.g. "New in ..."
+    title: str = Field(min_length=1, max_length=70)
+    subtitle: str | None = Field(default=None, max_length=180)
+    image: str | None = None                  # file in inputs/<client>/ (png, jpg, webp, svg)
+
+
+Unit = Annotated[float, Field(ge=0, le=1)]
+
+
+class DemoStep(Strict):
+    caption: str = Field(min_length=1, max_length=90)      # *words* in brand colour
+    focus: tuple[Unit, Unit] = (0.5, 0.5)    # where to look: across, down (0 = left/top, 1 = right/bottom)
+    zoom: float = Field(default=1, ge=1, le=3)   # 1 = whole screenshot, 2 = twice as close
+    marker: bool = False                      # pulse a ring on the focus point
+    image: str | None = None                  # another screenshot for this step (default: the main one)
+
+
+# device_demo timing (seconds): intro title, each step, closing frame
+DEMO_INTRO, DEMO_STEP, DEMO_OUTRO, DEMO_MIN_STEP = 2.2, 3.0, 3.0, 2.0
+
+
+class DeviceDemoSpec(MotionSpec):
+    template: Literal["device_demo"]
+    kicker: str | None = Field(default=None, max_length=40)
+    title: str = Field(min_length=1, max_length=70)          # intro and closing line
+    image: str                                # main screenshot in inputs/<client>/
+    steps: list[DemoStep] = Field(min_length=1, max_length=6)
+    cta: str | None = Field(default=None, max_length=60)     # closing button, e.g. a URL
+    look: Literal["clean", "cinematic"] = "clean"   # cinematic: fog, reflections, glow, film grain
+
+    @model_validator(mode="after")
+    def duration_fits_steps(self):
+        shortest = DEMO_INTRO + DEMO_OUTRO + DEMO_MIN_STEP * len(self.steps)
+        if self.duration is not None and self.duration < shortest:
+            raise ValueError(f"duration is too short for {len(self.steps)} steps "
+                             f"(at least {shortest:.1f}s)")
+        return self
+
+
+# event_recap: one rich infographic image (Remotion), like a magazine page about an event
+ICONS = Literal["flask", "leaf", "globe", "shield", "recycle", "thermometer", "droplet", "bearing",
+                "mic", "molecule", "chart", "people", "scale", "gear"]
+
+
+class RecapStat(Strict):
+    value: str = Field(min_length=1, max_length=10)          # e.g. "~5,000"
+    label: str = Field(min_length=1, max_length=22)          # e.g. "attendees"
+
+
+class RecapCard(Strict):
+    icon: ICONS
+    name: str = Field(min_length=1, max_length=40)           # speaker
+    org: str | None = Field(default=None, max_length=40)     # their organisation
+    topic: str = Field(min_length=1, max_length=60)
+    body: str = Field(min_length=1, max_length=175)          # what they said, in 2-4 lines
+
+
+class RecapPoint(Strict):
+    icon: ICONS
+    text: str = Field(min_length=1, max_length=60)
+
+
+class BigPicture(Strict):
+    label: str = Field(default="The bigger picture", max_length=30)
+    title: str = Field(min_length=1, max_length=150)         # *words* in a lighter blue
+    points_label: str | None = Field(default=None, max_length=34)
+    points: list[RecapPoint] = Field(default_factory=list, max_length=4)
+
+
+class EventRecapSpec(Strict):
+    template: Literal["event_recap"]
+    name: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]+$")
+    sizes: list[Literal["portrait"]] = Field(default_factory=lambda: ["portrait"], min_length=1)
+    video: bool = False                       # also make a 5-second animated MP4
+    badge: str | None = Field(default=None, max_length=50)   # e.g. event name and city
+    title: str = Field(min_length=1, max_length=60)
+    title_accent: str | None = Field(default=None, max_length=60)   # second line, brand colour
+    intro: str = Field(min_length=1, max_length=230)
+    stats: list[RecapStat] = Field(default_factory=list, max_length=3)
+    cards_label: str = Field(default="Key takeaways", max_length=50)
+    cards: list[RecapCard] = Field(min_length=2, max_length=4)
+    big_picture: BigPicture
+    closing: str = Field(min_length=1, max_length=130)
+
+
+TEMPLATES = ["quote", "stat", "carousel", "title", "quote_motion", "stat_motion", "device_demo",
+             "event_recap"]
+Spec = Annotated[Union[QuoteSpec, StatSpec, CarouselSpec, TitleSpec, QuoteMotionSpec,
+                       StatMotionSpec, DeviceDemoSpec, EventRecapSpec],
                  Field(discriminator="template")]
 _batch = TypeAdapter(list[Spec])
 _single = TypeAdapter(Spec)

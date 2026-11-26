@@ -67,6 +67,7 @@ class Brand(Strict):
     handle: str | None = None    # shown in the footer, e.g. vizcorn.com or @vizcorn
     footer: str | None = None    # optional tagline line in the footer
     logo: str | None = None      # file name inside brands/<client>/
+    logo_with_name: bool = False # show the brand name next to the logo (for icon-only logos)
     colors: Colors
     font: Font = Field(default_factory=Font)
     logo_data_uri: str | None = None   # filled in by load_brand, never written by hand

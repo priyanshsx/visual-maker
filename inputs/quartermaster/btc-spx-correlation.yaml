@@ -1,0 +1,12 @@
+# Bitcoin vs S&P 500 correlation card. Numbers from the Quartermaster app:
+# 0.228 = correlation of daily returns, 2014-2026 (the app shows 0.23 on daily returns,
+# 0.17 on weekly). 57% of 635 weeks moved the same direction.
+# Run: python -m visuals --client quartermaster --file btc-spx-correlation.yaml
+
+- template: stat
+  name: btc-spx-correlation
+  sizes: [landscape, square]
+  stat: "0.228"
+  headline: "Bitcoin vs S&P 500: close to no relationship"
+  body: "Even week to week, they moved the same way only 57% of the time. Two unrelated assets land near 50%."
+  source: "Quartermaster · correlation of daily returns · 2014–2026"

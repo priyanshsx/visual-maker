@@ -17,6 +17,9 @@
 #   Motion:
 #     python -m visuals --client vizcorn --template stat_motion --stat "75%" --headline "..."
 #     python -m visuals --client vizcorn --template quote_motion --quote "Fix the *data* first."
+#   3D product demo (device_demo, made with Remotion; YAML file only, see inputs/quartermaster/):
+#     python -m visuals --client quartermaster --file correlations-demo.yaml
+#     add --html to keep a props file for previewing in Remotion Studio
 #   Output: outputs/<client>/<today>/
 #--------------------------------------------------------------#
 
@@ -49,6 +52,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--headline")
     p.add_argument("--body")
     p.add_argument("--source")
+    p.add_argument("--title")
+    p.add_argument("--kicker")
+    p.add_argument("--subtitle")
+    p.add_argument("--image", help="title card image (file in inputs/<client>/)")
     p.add_argument("--slide", action="append", help='carousel slide: "Title" or "Title | body"')
     p.add_argument("--size", action="append", choices=list(SIZES),
                    help="output size (default: portrait); repeat for several")
@@ -74,7 +81,10 @@ def friendly_errors(error: ValidationError) -> str:
         if loc and loc[0] in TEMPLATES:
             prefix = f"{prefix} ({loc[0]})" if prefix else loc[0]
             loc = loc[1:]
-        field = " ".join(f"slide {int(x) + 1}" if x.isdigit() else f'"{x}"' for x in loc)
+        names = {"slides": "slide", "steps": "step", "focus": "focus value", "cards": "card",
+                 "stats": "stat", "points": "point"}
+        field = " ".join(f"{names.get(loc[j - 1], 'item')} {int(x) + 1}" if x.isdigit() and j
+                         else f'"{x}"' for j, x in enumerate(loc))
         kind, ctx = err["type"], err.get("ctx", {})
         if kind == "missing":
             msg = f"{field} is missing"
@@ -102,6 +112,14 @@ def resolve_file(client: str, file: str) -> Path:
     raise FileNotFoundError(f"Batch file not found: {file} (also looked in {INPUTS_DIR / client})")
 #--------------------------------------------------------------#
 
+# Find an image file: as typed, or inside inputs/<client>/
+def resolve_image(client: str, image: str) -> Path:
+    for candidate in (Path(image), INPUTS_DIR / client / image):
+        if candidate.exists():
+            return candidate.resolve()
+    raise FileNotFoundError(f"Image not found: {image} (also looked in {INPUTS_DIR / client})")
+#--------------------------------------------------------------#
+
 # Find the music file: as typed, or inside inputs/<client>/ (None if no music)
 def resolve_music(client: str, music: str | None) -> Path | None:
     if not music:
@@ -119,6 +137,8 @@ def spec_from_args(args: argparse.Namespace):
         data["name"] = args.name
     if args.size:
         data["sizes"] = args.size
+    if args.template in ("device_demo", "event_recap"):
+        raise ValueError(f"{args.template} has several parts: write it in a YAML file and use --file")
     motion = args.template.endswith("_motion")
     if args.video and not motion:
         data["video"] = True
@@ -135,7 +155,8 @@ def spec_from_args(args: argparse.Namespace):
             slides.append({"title": title.strip(), **({"body": body.strip()} if body.strip() else {})})
         data["slides"] = slides
     else:
-        for key in ("quote", "author", "role", "stat", "headline", "body", "source"):
+        for key in ("quote", "author", "role", "stat", "headline", "body", "source",
+                    "title", "kicker", "subtitle", "image"):
             value = getattr(args, key)
             if value is not None:
                 data[key] = value
@@ -165,6 +186,12 @@ def main(argv: list[str] | None = None) -> int:
             specs = [type(s).model_validate(s.model_dump()) for s in specs]   # re-check limits
         else:
             specs = [spec_from_args(args)]
+        specs = [s.model_copy(update={"image": str(resolve_image(args.client, s.image))})
+                 if getattr(s, "image", None) else s for s in specs]     # find image files up front
+        specs = [s.model_copy(update={"steps": [
+                     st.model_copy(update={"image": str(resolve_image(args.client, st.image))})
+                     if st.image else st for st in s.steps]})
+                 if hasattr(s, "steps") else s for s in specs]           # and per-step screenshots
     except ValidationError as e:
         print(f"Your words don't fit the template rules:\n{friendly_errors(e)}", file=sys.stderr)
         return 2
@@ -181,9 +208,15 @@ def main(argv: list[str] | None = None) -> int:
             base = spec.name or f"{i:02d}-{spec.template}"
             for size in spec.sizes:
                 try:
+                    if spec.template in ("device_demo", "event_recap"):   # made with Remotion
+                        from visuals.remotion_bridge import render_remotion
+                        made += render_remotion(spec, brand, size, out_dir, base,
+                                                resolve_music(args.client, getattr(spec, "music", None)),
+                                                keep_props=args.html)
+                        continue
                     if spec.template.endswith("_motion"):  # animated: MP4 + poster
                         made += renderer.render_motion(spec, brand, size, out_dir, base,
-                                                       resolve_music(args.client, spec.music),
+                                                       resolve_music(args.client, getattr(spec, "music", None)),
                                                        keep_html=args.html)
                         continue
                     files = renderer.render(spec, brand, size, out_dir, base, keep_html=args.html)

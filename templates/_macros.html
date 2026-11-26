@@ -2,6 +2,7 @@
 {%- macro brandmark(on_primary=False) -%}
   {%- if brand.logo_data_uri -%}
     <span class="logo-wrap{% if on_primary %} on-primary{% endif %}"><img class="logo" src="{{ brand.logo_data_uri }}" alt="{{ brand.display_name }}"></span>
+    {%- if brand.logo_with_name %}<span class="wordmark with-logo">{{ brand.display_name }}</span>{% endif -%}
   {%- else -%}
     <span class="wordmark">{{ brand.display_name }}</span>
   {%- endif -%}

@@ -13,6 +13,13 @@ playwright install chromium
 python -m pytest -q
 ```
 
+For the 3D demo videos (device_demo) you also need Node.js, then install Remotion once:
+
+```bash
+brew install node
+cd remotion && npm install && cd ..
+```
+
 ## Make images
 
 Write your words in `inputs/<client>/<file>.yaml` (see `inputs/vizcorn/example.yaml`), then:
@@ -70,6 +77,58 @@ python -m visuals --client vizcorn --template quote_motion --quote "Fix the *dat
 
 `*asterisks*` around words also work in the static quote card.
 
+## 3D product demos (device_demo, made with Remotion)
+
+A screenshot on a floating 3D screen. The camera glides to the points you pick while a
+caption explains each one, then closes on your title and a call-to-action button.
+Length: 2.2s intro + 3s per step + 3s close (or set `duration`). YAML file only:
+
+```yaml
+- template: device_demo
+  name: correlations-demo
+  sizes: [portrait, landscape]
+  kicker: New in Quartermaster          # small label on the intro (40)
+  title: "Correlations. *Now live.*"     # intro and closing line (70)
+  image: correlations-chart.png          # main screenshot in inputs/<client>/
+  cta: Free at app.quartermasterlabs.com # closing button (60, optional)
+  look: cinematic                        # or clean (default): flat background
+  steps:                                 # 1 to 6
+    - caption: "Each asset's rolling correlation with *Bitcoin*"   # (90)
+    - caption: "*S&P 500, Apple and gold* on one chart"
+      focus: [0.165, 0.2]   # across, down: 0 = left/top, 1 = right/bottom
+      zoom: 2.4             # 1 = whole screenshot, up to 3
+      marker: true          # pulse a ring on the focus point
+      # image: other.png    # optional: another screenshot for this step
+```
+
+```bash
+python -m visuals --client quartermaster --file correlations-demo.yaml
+```
+
+`look: cinematic` adds fog (the screen emerges from it), a wet-looking reflective floor,
+floating dust, a soft light beam, glow on bright lines, a slow handheld camera, film grain,
+a vignette and titles that come into focus. No 3D models needed. The pieces live in
+`remotion/src/cinematic/` so other videos can reuse them.
+
+Takes a few minutes per size. To fine-tune timing and look in the browser, add `--html`
+(keeps a `.props.json` next to the video), then:
+
+```bash
+cd remotion && npx remotion studio src/index.ts --props=../outputs/<client>/<date>/<name>_<size>.props.json
+```
+
+## Event recap image (event_recap, made with Remotion)
+
+One rich portrait image (1080x1350, saved at 2x for sharpness) about an event, like a
+magazine page: event badge, two-line headline, intro, up to 3 stat chips and a 3D hero
+(steel bearing + lubricant drop), 2–4 speaker cards, a dark "bigger picture" band with up
+to 4 themes, and a closing line. See `inputs/vizcorn/lubricant-expo-recap.yaml`.
+Icons: flask, leaf, globe, shield, recycle, thermometer, droplet, bearing, mic, molecule,
+chart, people, scale, gear. Add `video: true` for a 5-second animated version too.
+
+The 3D code lives in `remotion/src/` (React + Three.js). Remotion is free for individuals and
+companies of up to 3 people; bigger teams need a Remotion company licence.
+
 ## Templates
 
 | Template | Fields (max characters) |
@@ -79,6 +138,8 @@ python -m visuals --client vizcorn --template quote_motion --quote "Fix the *dat
 | carousel | 2–12 slides, each: title (90), body (320). First slide is the cover. |
 | stat_motion | as stat (animated, see below) |
 | quote_motion | as quote (animated, see below) |
+| device_demo | title (70), image, 1–6 steps, kicker (40), cta (60) (3D, see below) |
+| event_recap | badge (50), title (60), title_accent (60), intro (230), stats (≤3), 2–4 cards, big_picture, closing (130) |
 
 Text shrinks automatically to fit. If it still doesn't fit, the image is not made and you get
 a message saying which text to shorten.
@@ -96,7 +157,8 @@ next to it. No code changes.
 brands/      one folder per client: brand.yaml + logo
 fonts/       bundled font files (Inter, SIL Open Font License)
 templates/   HTML/CSS designs shared by all clients
-visuals/     the code (cli, brand, specs, render, video)
+visuals/     the code (cli, brand, specs, render, video, remotion_bridge)
+remotion/    the 3D video project (React + Three.js, rendered by Remotion)
 inputs/      your words, one YAML file per batch
 outputs/     finished images (not in git)
 tests/       automatic checks

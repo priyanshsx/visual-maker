@@ -1,0 +1,28 @@
+# 3D product demo of the Correlations page (template: device_demo, made with Remotion).
+# The screenshot is real (rolling 52-week correlation with Bitcoin).
+# Run: python -m visuals --client quartermaster --file correlations-demo.yaml
+#
+# Each step: the camera glides to "focus" (across, down: 0 = left/top, 1 = right/bottom),
+# "zoom" (1 = whole screenshot, up to 3) while the caption explains it.
+# "marker: true" pulses a ring on the focus point. A step can use another screenshot
+# with "image: other.png". look: cinematic adds fog, a reflective floor, floating dust,
+# glow on bright lines, a slow handheld camera and film grain (look: clean = flat background).
+# Length: 2.2s intro + 3s per step + 3s close (or set duration).
+
+- template: device_demo
+  name: correlations-demo
+  sizes: [portrait, landscape]
+  look: cinematic
+  kicker: New in Quartermaster
+  title: "Correlations. *Now live.*"
+  image: correlations-chart.png
+  cta: Free at app.quartermasterlabs.com
+  steps:
+    - caption: "Each asset's rolling correlation with *Bitcoin*"
+    - caption: "*S&P 500, Apple and gold* on one chart"
+      focus: [0.165, 0.2]
+      zoom: 2.4
+      marker: true
+    - caption: "Spot when the relationship *shifts*"
+      focus: [0.83, 0.45]
+      zoom: 1.9

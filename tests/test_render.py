@@ -87,4 +87,30 @@ def test_text_that_cannot_fit_stops_with_error(renderer, tmp_path):
     with pytest.raises(TextOverflowError, match="Shorten it"):
         renderer.render(spec, BRAND, "landscape", tmp_path, "too-long")
 #--------------------------------------------------------------#
+
+# Tests: title card (launches)
+def test_title_card_embeds_image_and_emphasis(tmp_path):
+    img = tmp_path / "shot.svg"
+    img.write_text("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/>")
+    spec = spec_from_dict({"template": "title", "kicker": "New", "title": "Correlations. *Now live.*",
+                           "image": str(img)})
+    html = build_html(spec, BRAND, "landscape")
+    assert 'src="data:image/svg+xml;base64,' in html
+    assert '<span class="em">Now live.</span>' in html and 'class="slide title-card has-image"' in html
+
+
+def test_title_card_without_image_and_missing_image():
+    html = build_html(spec_from_dict({"template": "title", "title": "Hello"}), BRAND, "square")
+    assert 'class="slide title-card"' in html
+    with pytest.raises(FileNotFoundError):
+        build_html(spec_from_dict({"template": "title", "title": "x", "image": "/nope.png"}),
+                   BRAND, "square")
+
+
+def test_title_card_renders(renderer, tmp_path):
+    spec = spec_from_dict({"template": "title", "kicker": "New", "title": "Correlations. *Now live.*",
+                           "subtitle": "A short line."})
+    paths = renderer.render(spec, BRAND, "landscape", tmp_path, "t")
+    assert png_size(paths[0]) == (1200, 675)
+#--------------------------------------------------------------#
 #----------------------End-of-code-----------------------------#

@@ -1,0 +1,21 @@
+# Quartermaster brand kit (dark theme, from the logo: near-black, white ring, green #34D399).
+display_name: Quartermaster
+website: app.quartermasterlabs.com
+handle: app.quartermasterlabs.com
+footer: Educational, not financial advice
+
+logo: logo.svg            # the Q mark (white ring + green tail), from logo-mark.svg
+logo_with_name: true      # the mark is icon-only, so show "Quartermaster" next to it
+
+colors:
+  primary: "#34D399"      # Quartermaster green (from the logo)
+  text: "#F5F7F8"         # near-white
+  muted: "#9AA3AE"        # grey for secondary text
+  background: "#050505"   # near-black (from the logo background)
+  surface: "#111214"
+  on_primary: "#050505"   # dark text on green
+
+font:
+  family: Inter           # placeholder until Quartermaster's app font is confirmed
+  folder: fonts/inter
+  weights: [400, 600, 700, 800]

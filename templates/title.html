@@ -1,0 +1,27 @@
+{% extends "_layout.html" %}
+{% from "_macros.html" import brandmark with context %}
+{#- Title card for launches and announcements: kicker, big title (*words* in brand colour),
+    subtitle, and an optional framed image (a product screenshot or chart).
+    Landscape: text left, image right. Square / portrait / story: text on top, image below. -#}
+{% block slides %}
+<section class="slide title-card{% if image %} has-image{% endif %}">
+  <div class="accent-bar"></div>
+  <header class="top">{{ brandmark() }}</header>
+  <main class="title-body">
+    <div class="content title-text" data-fit-box="title">
+      <div class="fit">
+        {% if spec.kicker %}<div class="kicker"><span class="dot"></span>{{ spec.kicker }}</div>{% endif %}
+        <h1 class="title" data-fit>{{ spec.title | nobreak | emphasis }}</h1>
+        {% if spec.subtitle %}<p class="subtitle" data-fit>{{ spec.subtitle }}</p>{% endif %}
+      </div>
+    </div>
+    {% if image %}
+    <div class="shot"><img src="{{ image }}" alt=""></div>
+    {% endif %}
+  </main>
+  <footer class="bottom">
+    <span class="handle">{{ brand.handle or brand.website or "" }}</span>
+    <span class="tagline">{{ brand.footer or "" }}</span>
+  </footer>
+</section>
+{% endblock %}
