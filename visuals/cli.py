@@ -20,6 +20,7 @@
 #   From an idea (LLM writes the YAML for a client's bucket; see visuals/ideas.py):
 #     python -m visuals buckets --client quartermaster
 #     python -m visuals idea --client quartermaster --bucket feature_launch --files shot.png --idea "..."
+#   Web app (create, edit, preview, render in the browser): python -m visuals web
 #   3D product demo (device_demo, made with Remotion; YAML file only, see inputs/quartermaster/):
 #     python -m visuals --client quartermaster --file correlations-demo.yaml
 #     add --html to keep a props file for previewing in Remotion Studio
@@ -181,11 +182,45 @@ def spec_from_args(args: argparse.Namespace):
 #--------------------------------------------------------------#
 
 # Main: load brand + words, render everything, report what was made
+# Render checked specs (file names already resolved) into out_dir.
+# Returns (files made, failure messages). Used by the command line and the web app.
+def render_specs(client: str, brand, specs, out_dir: Path, keep: bool = False) -> tuple[list[Path], list[str]]:
+    from visuals.render import Renderer, TextOverflowError   # imported late: starts a browser
+    from visuals.video import VideoError, make_slideshow
+    from visuals.remotion_bridge import COMPOSITIONS, render_remotion
+    made, failed = [], []
+    with Renderer() as renderer:
+        for i, spec in enumerate(specs, start=1):
+            base = spec.name or f"{i:02d}-{spec.template}"
+            music = resolve_music(client, getattr(spec, "music", None))
+            for size in spec.sizes:
+                try:
+                    if spec.template in COMPOSITIONS:      # made with Remotion
+                        made += render_remotion(spec, brand, size, out_dir, base, music, keep_props=keep)
+                        continue
+                    if spec.template.endswith("_motion"):  # animated: MP4 + poster
+                        made += renderer.render_motion(spec, brand, size, out_dir, base, music, keep_html=keep)
+                        continue
+                    made += renderer.render(spec, brand, size, out_dir, base, keep_html=keep)
+                    if spec.video:                          # video frames: separate, temporary
+                        width, height = SIZES[size]
+                        with tempfile.TemporaryDirectory() as tmp:
+                            frames = renderer.render(spec, brand, size, Path(tmp), base, for_video=True)
+                            made.append(make_slideshow(frames, out_dir / f"{base}_{size}.mp4", width, height,
+                                                       spec.seconds_per_slide, music))
+                except (TextOverflowError, VideoError) as e:
+                    failed.append(str(e))
+    return made, failed
+#--------------------------------------------------------------#
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] in ("idea", "buckets"):          # idea -> spec (LLM), list buckets
         from visuals.ideas import main as ideas_main
         return ideas_main(argv)
+    if argv and argv[0] == "web":                         # the web app
+        from visuals.web.app import main as web_main
+        return web_main(argv)
     args = parse_args(argv)
     try:
         brand = load_brand(args.client)
@@ -215,38 +250,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Problem: {e}", file=sys.stderr)
         return 2
 
-    from visuals.render import Renderer, TextOverflowError   # imported late: starts a browser
-    from visuals.video import VideoError, make_slideshow
     out_dir = Path(args.out) if args.out else OUTPUTS_DIR / args.client / date.today().isoformat()
-    made, failed = [], []
-    with Renderer() as renderer:
-        for i, spec in enumerate(specs, start=1):
-            base = spec.name or f"{i:02d}-{spec.template}"
-            for size in spec.sizes:
-                try:
-                    from visuals.remotion_bridge import COMPOSITIONS, render_remotion
-                    if spec.template in COMPOSITIONS:      # made with Remotion
-                        made += render_remotion(spec, brand, size, out_dir, base,
-                                                resolve_music(args.client, getattr(spec, "music", None)),
-                                                keep_props=args.html)
-                        continue
-                    if spec.template.endswith("_motion"):  # animated: MP4 + poster
-                        made += renderer.render_motion(spec, brand, size, out_dir, base,
-                                                       resolve_music(args.client, getattr(spec, "music", None)),
-                                                       keep_html=args.html)
-                        continue
-                    files = renderer.render(spec, brand, size, out_dir, base, keep_html=args.html)
-                    made += files
-                    if spec.video:                          # video frames: separate, temporary
-                        width, height = SIZES[size]
-                        with tempfile.TemporaryDirectory() as tmp:
-                            frames = renderer.render(spec, brand, size, Path(tmp), base,
-                                                     for_video=True)
-                            made.append(make_slideshow(
-                                frames, out_dir / f"{base}_{size}.mp4", width, height,
-                                spec.seconds_per_slide, resolve_music(args.client, spec.music)))
-                except (TextOverflowError, VideoError) as e:
-                    failed.append(str(e))
+    made, failed = render_specs(args.client, brand, specs, out_dir, keep=args.html)
 
     for path in made:
         print(f"made   {path}")

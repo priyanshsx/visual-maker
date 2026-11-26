@@ -76,7 +76,7 @@ export const TalkingHead: React.FC<TalkingHeadProps> = (p) => {
   return (
     <AbsoluteFill style={{ background: "#000", fontFamily: `"${p.brand.fontFamily}", sans-serif` }}>
       <style>{p.brand.fontCss}</style>
-      <OffthreadVideo src={staticFile(p.footage)} trimBefore={p.startFrame} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <OffthreadVideo src={/^(\/|https?:)/.test(p.footage) ? p.footage : staticFile(p.footage)} trimBefore={p.startFrame} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       {/* small brand mark, top left, always on */}
       <div style={{ position: "absolute", left: 56 * s, top: 48 * s, padding: `${10 * s}px ${18 * s}px`, borderRadius: 14 * s,
         background: `${p.brand.colors.background}B0` }}>

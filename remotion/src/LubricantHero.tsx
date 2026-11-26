@@ -8,6 +8,7 @@ import { ThreeCanvas } from "@remotion/three";
 import { useMemo } from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import * as THREE from "three";
+import { RedrawOnFrame } from "./shared";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 // Studio reflections, set up while the scene is first built (not after), so even a single
@@ -66,12 +67,13 @@ export const LubricantHero: React.FC<{ width: number; height: number; accent: st
   const spin = t * 0.5;
 
   return (
-    <ThreeCanvas width={width} height={height} dpr={2}
+    <ThreeCanvas frameloop="demand" width={width} height={height} dpr={2}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true, toneMapping: THREE.ACESFilmicToneMapping }}
       camera={{ fov: 28, position: [0, 2.6, 12.2], near: 0.1, far: 100 }}
       onCreated={({ camera }) => camera.lookAt(0, 0.3, 0)}
       style={{ position: "absolute", inset: 0 }}>
       <Studio />
+      <RedrawOnFrame />
       <ambientLight intensity={0.25} />
       <directionalLight position={[4, 6, 5]} intensity={2.2} />
       <pointLight position={[-3, 1, 3]} intensity={18} distance={12} color={accent} />

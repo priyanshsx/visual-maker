@@ -99,7 +99,7 @@ export type TalkingHeadProps = {
   width: number;
   height: number;
   brand: BrandProps;
-  footage: string;               // file name, served from the client's inputs folder
+  footage: string;               // file name in the client's inputs folder (or a URL in the web app)
   startFrame: number;            // trim start, in frames
   durationFrames: number;
   overlays: (HeadOverlay & { from: number; frames: number })[];

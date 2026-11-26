@@ -117,6 +117,35 @@ Takes a few minutes per size. To fine-tune timing and look in the browser, add `
 cd remotion && npx remotion studio src/index.ts --props=../outputs/<client>/<date>/<name>_<size>.props.json
 ```
 
+## Web app
+
+Everything above, in the browser: pick a client and bucket, toggle **Image / Video**, write
+the idea and attach files, then edit the draft as a form (or YAML), see a live preview, render,
+and download. Drafts are the same YAML files in `inputs/<client>/`, so the app and the command
+line always see the same work. Renders run one at a time in the background on this Mac.
+
+```bash
+pip install -e .                                   # once (web server libraries)
+cd remotion && npm install && cd ..                # once (adds the preview player)
+python -m visuals web                              # then open http://127.0.0.1:8000
+```
+
+- **Library**: every spec file for the client, with the bucket it came from and anything to check.
+- **Editor**: fields on the left. For screenshots and charts, "Pick on picture" sets a focus
+  point by clicking. The preview on the right plays the real template (3D included). Fields
+  that are not in the file yet can be added in the YAML tab.
+- **Renders**: the queue and finished files (also saved in `outputs/<client>/<date>/`).
+
+Changed something in `remotion/web/` or `remotion/src/`? Rebuild the page with
+`cd remotion && npm run build:web`, then restart the app.
+
+**Using it from anywhere** (the app keeps running on your Mac; the Mac must be on and awake):
+1. Set `WEBAPP_USER` and `WEBAPP_PASSWORD` in `.env` (the app refuses to open up without them).
+2. Easiest private option: install Tailscale on the Mac and your phone/laptop, run
+   `tailscale serve 8000`, and open the address it prints from any of your devices.
+   To share with people outside your devices (e.g. a client team), use a Cloudflare Tunnel instead.
+3. Keep the Mac awake while you need it: `caffeinate -dis` in another Terminal tab.
+
 ## From an idea (buckets + LLM)
 
 Each client has content buckets in `brands/<client>/buckets.yaml`: the kind of post, which
@@ -199,6 +228,7 @@ fonts/       bundled font files (Inter, SIL Open Font License)
 templates/   HTML/CSS designs shared by all clients
 visuals/     the code (cli, brand, specs, render, video, remotion_bridge, buckets, ideas, llm)
 prompts/     the LLM prompt for the idea command (plain text, edit freely)
+visuals/web/ the web app server (python -m visuals web); its page lives in remotion/web/
 remotion/    the 3D video project (React + Three.js, rendered by Remotion)
 inputs/      your words, one YAML file per batch
 outputs/     finished images (not in git)

@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { FOV, FPS, MOVE_SECONDS, PANEL_WORLD_WIDTH, cameraAt, phaseAt } from "./timeline";
 import { Dust, FogRig, LightBeam, ReflectiveFloor } from "./cinematic/Atmosphere";
 import { LensEffects } from "./cinematic/Effects";
+import { RedrawOnFrame } from "./shared";
 import type { DeviceDemoProps } from "./types";
 
 const BEZEL = 0.07;         // bezel width around the screenshot (world units)
@@ -137,6 +138,7 @@ export const Screen3D: React.FC<{ p: DeviceDemoProps }> = ({ p }) => {
 
   return (
     <ThreeCanvas
+      frameloop="demand"
       width={p.width}
       height={p.height}
       dpr={2}
@@ -145,6 +147,7 @@ export const Screen3D: React.FC<{ p: DeviceDemoProps }> = ({ p }) => {
       style={{ position: "absolute", inset: 0 }}
     >
       <CameraRig x={cam.x} y={cam.y} z={cam.z} roll={cam.roll} />
+      <RedrawOnFrame />
       {cine && (
         <>
           <color attach="background" args={[bg]} />
